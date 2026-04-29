@@ -1,0 +1,299 @@
+import MembersModel from '../models/membersModel.js';
+
+const formatDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseYmd = (rawDate) => {
+  if (!rawDate) return null;
+
+  // Handle native Date values from DB drivers.
+  if (rawDate instanceof Date) {
+    return {
+      year: rawDate.getUTCFullYear(),
+      month: rawDate.getUTCMonth() + 1,
+      day: rawDate.getUTCDate()
+    };
+  }
+
+  const raw = String(rawDate).trim();
+  const ymdMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymdMatch) {
+    return {
+      year: parseInt(ymdMatch[1], 10),
+      month: parseInt(ymdMatch[2], 10),
+      day: parseInt(ymdMatch[3], 10)
+    };
+  }
+
+  // Fallback for odd string formats.
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return {
+      year: parsed.getUTCFullYear(),
+      month: parsed.getUTCMonth() + 1,
+      day: parsed.getUTCDate()
+    };
+  }
+
+  return null;
+};
+
+const buildOccurrence = (year, month, day) => {
+  const fallback = new Date(year, month, 0);
+  const date = new Date(year, month - 1, day);
+
+  // Handle invalid calendar dates like Feb 29 on non-leap years.
+  if (date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return fallback;
+  }
+
+  return date;
+};
+
+const getRangeForFilter = (referenceDate, period, window) => {
+  const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+
+  if (period === 'week') {
+    const dayOfWeek = ref.getDay();
+    const start = new Date(ref);
+    start.setDate(ref.getDate() - dayOfWeek + (window === 'upcoming' ? 7 : 0));
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  // Month filter
+  const year = ref.getFullYear();
+  const month = ref.getMonth();
+  const start = window === 'upcoming'
+    ? new Date(year, month + 1, 1)
+    : new Date(year, month, 1);
+  const end = window === 'upcoming'
+    ? new Date(year, month + 2, 0, 23, 59, 59, 999)
+    : new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+  return { start, end };
+};
+
+const findOccurrenceInRange = (rawDate, rangeStart, rangeEnd) => {
+  const parsed = parseYmd(rawDate);
+  if (!parsed) return null;
+
+  const startYear = rangeStart.getFullYear();
+  const endYear = rangeEnd.getFullYear();
+  const candidates = [];
+
+  for (let year = startYear - 1; year <= endYear + 1; year++) {
+    const candidate = buildOccurrence(year, parsed.month, parsed.day);
+    if (candidate >= rangeStart && candidate <= rangeEnd) {
+      candidates.push(candidate);
+    }
+  }
+
+  candidates.sort((a, b) => a.getTime() - b.getTime());
+  return candidates[0] || null;
+};
+
+/**
+ * Members business logic layer.
+ * Handles validation, transformation, and orchestration.
+ */
+const MembersService = {
+  /**
+   * List members with filters.
+   */
+  async list(filters) {
+    const result = await MembersModel.findAll(filters);
+
+    return {
+      members: result.members.map(transformMember),
+      pagination: {
+        total: result.total,
+        limit: result.limit,
+        offset: result.offset,
+        hasMore: result.offset + result.limit < result.total,
+      },
+    };
+  },
+
+  /**
+   * Get a single member by ID.
+   */
+  async getById(id) {
+    const member = await MembersModel.findById(id);
+    if (!member) {
+      const err = new Error('Member not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    return transformMember(member);
+  },
+
+  /**
+   * Get members with birthdays in a specific month.
+   */
+  async getBirthdaysByMonth(monthIndex, userRole, userZoneId) {
+    const filterZone = userRole === 'zone_leader' ? userZoneId : null;
+    const rows = await MembersModel.getBirthdaysByMonth(monthIndex, filterZone);
+    return rows.map(r => ({
+      id: r.id,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      avatarUrl: r.avatar_url,
+      dob: r.dob ? new Date(r.dob).toISOString().split('T')[0] : null,
+    }));
+  },
+
+  /**
+   * Get celebration members by filter type and date window.
+   */
+  async getCelebrations({ type, period, window, referenceDate, userRole, userZoneId }) {
+    const filterZone = userRole === 'zone_leader' ? userZoneId : null;
+    const rows = await MembersModel.getCelebrationMembers(type, filterZone);
+    const ref = referenceDate
+      ? new Date(`${referenceDate}T00:00:00`)
+      : new Date();
+
+    if (Number.isNaN(ref.getTime())) {
+      const err = new Error('Invalid reference date');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const { start, end } = getRangeForFilter(ref, period, window);
+    const dateField = type === 'anniversary' ? 'marriage_date' : 'dob';
+
+    const celebrations = rows
+      .map((row) => {
+        const rawDate = row[dateField];
+        const occurrenceDate = findOccurrenceInRange(rawDate, start, end);
+        if (!occurrenceDate) return null;
+
+        const parsed = parseYmd(rawDate);
+        if (!parsed) return null;
+
+        const milestone = occurrenceDate.getFullYear() - parsed.year;
+        return {
+          id: row.id,
+          firstName: row.first_name,
+          lastName: row.last_name,
+          avatarUrl: row.avatar_url,
+          date: formatDate(occurrenceDate),
+          day: occurrenceDate.getDate(),
+          month: occurrenceDate.getMonth() + 1,
+          type,
+          milestone,
+          milestoneLabel: type === 'birthday' ? 'Turning' : 'Years Married',
+          maritalStatus: row.marital_status || null,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return {
+      rangeStart: formatDate(start),
+      rangeEnd: formatDate(end),
+      celebrations,
+    };
+  },
+
+  /**
+   * Create a new member.
+   */
+  async create(data) {
+    // Check for duplicate email
+    const existing = await MembersModel.findByEmail(data.email);
+    if (existing) {
+      const err = new Error('A member with this email already exists');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const member = await MembersModel.create(data);
+    return transformMember(member);
+  },
+
+  /**
+   * Update an existing member.
+   */
+  async update(id, data) {
+    // Check member exists
+    const existing = await MembersModel.findById(id);
+    if (!existing) {
+      const err = new Error('Member not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    // If email is being changed, check it's not taken
+    if (data.email && data.email !== existing.email) {
+      const emailTaken = await MembersModel.findByEmail(data.email);
+      if (emailTaken) {
+        const err = new Error('A member with this email already exists');
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+
+    const member = await MembersModel.update(id, data);
+    return transformMember(member);
+  },
+
+  /**
+   * Delete a member.
+   */
+  async delete(id) {
+    const member = await MembersModel.delete(id);
+    if (!member) {
+      const err = new Error('Member not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    return transformMember(member);
+  },
+
+  /**
+   * Get member statistics.
+   */
+  async getStats(zoneId) {
+    return MembersModel.getStats(zoneId);
+  },
+};
+
+/**
+ * Transform DB row (snake_case) to API response (camelCase).
+ * Matches the frontend Member interface.
+ */
+function transformMember(row) {
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    email: row.email,
+    phone: row.phone,
+    address: row.address,
+    status: row.status,
+    zoneId: row.zone_id,
+    joinDate: row.join_date ? new Date(row.join_date).toISOString().split('T')[0] : null,
+    avatarUrl: row.avatar_url,
+    notes: row.notes,
+    dob: row.dob ? new Date(row.dob).toISOString().split('T')[0] : null,
+    gender: row.gender,
+    role: row.role,
+    occupation: row.occupation,
+    emergencyContact: row.emergency_contact,
+    emergencyPhone: row.emergency_phone,
+    discoverySource: row.discovery_source,
+    maritalStatus: row.marital_status,
+    marriageDate: row.marriage_date ? new Date(row.marriage_date).toISOString().split('T')[0] : null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export default MembersService;

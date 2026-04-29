@@ -1,0 +1,7 @@
+{
+  "name": "Ecclesia CMS",
+  "description": "A modern, frontend-only Church Management System for managing members, zones, and analytics.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

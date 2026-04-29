@@ -1,0 +1,66 @@
+import { query } from '../config/db.js';
+
+const UsersModel = {
+  async findByEmail(email) {
+    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    return result.rows[0] || null;
+  },
+
+  async findById(id) {
+    const result = await query('SELECT * FROM users WHERE id = $1', [id]);
+    return result.rows[0] || null;
+  },
+
+  async findByMemberId(memberId) {
+    const result = await query('SELECT * FROM users WHERE member_id = $1', [memberId]);
+    return result.rows[0] || null;
+  },
+
+  async create(data) {
+    const { name, email, passwordHash, role, memberId, zoneId } = data;
+    const result = await query(
+      `INSERT INTO users (name, email, password_hash, role, member_id, zone_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [name || null, email, passwordHash, role, memberId || null, zoneId || null]
+    );
+    return result.rows[0];
+  },
+
+  async update(id, data) {
+    const fieldMap = {
+      name: 'name',
+      email: 'email',
+      passwordHash: 'password_hash',
+      role: 'role',
+      memberId: 'member_id',
+      zoneId: 'zone_id',
+    };
+
+    const setClauses = [];
+    const params = [];
+    let paramIndex = 1;
+
+    for (const [jsKey, dbColumn] of Object.entries(fieldMap)) {
+      if (data[jsKey] !== undefined) {
+        setClauses.push(`${dbColumn} = $${paramIndex}`);
+        params.push(data[jsKey]);
+        paramIndex++;
+      }
+    }
+
+    if (setClauses.length === 0) return this.findById(id);
+
+    setClauses.push('updated_at = NOW()');
+    params.push(id);
+
+    const result = await query(
+      `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      params
+    );
+
+    return result.rows[0] || null;
+  },
+};
+
+export default UsersModel;
