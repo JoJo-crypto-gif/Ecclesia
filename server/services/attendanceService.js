@@ -1,4 +1,5 @@
 import AttendanceModel from '../models/attendanceModel.js';
+import EventsService from './eventsService.js';
 
 const transformRecord = (row) => ({
   id: row.id,
@@ -60,13 +61,20 @@ const AttendanceService = {
       memberPayload = 'private',
     } = options;
 
+    const instance = await EventsService.getInstance(instanceId);
+    if (!instance) {
+      const err = new Error('Event instance not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
     // If no memberId is provided, optionally resolve the identifier to a member.
     let member = null;
     if (!memberId && visitorName) {
       const lookupFn = identifierMode === 'contact_only'
         ? AttendanceModel.findMemberByContactIdentifier.bind(AttendanceModel)
         : AttendanceModel.findMemberByIdentifier.bind(AttendanceModel);
-      member = await lookupFn(visitorName);
+      member = await lookupFn(visitorName, { zoneId: instance.zoneId || undefined });
       if (member) {
         memberId = member.id;
         visitorName = null;
@@ -77,6 +85,17 @@ const AttendanceService = {
       }
     } else if (memberId) {
       member = await AttendanceModel.findMemberById(memberId);
+      if (!member) {
+        const err = new Error('Member not found');
+        err.statusCode = 404;
+        throw err;
+      }
+    }
+
+    if (member && instance.zoneId && member.zone_id !== instance.zoneId) {
+      const err = new Error('This member does not belong to the zone for this event');
+      err.statusCode = 403;
+      throw err;
     }
 
     const row = await AttendanceModel.checkIn({ instanceId, memberId, visitorName, status });

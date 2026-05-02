@@ -44,7 +44,7 @@ const MembersController = {
 
       const validTypes = ['birthday', 'anniversary'];
       const validPeriods = ['week', 'month'];
-      const validWindows = ['current', 'upcoming'];
+      const validWindows = ['current', 'upcoming', 'today'];
 
       if (!validTypes.includes(type)) {
         return res.status(400).json({ success: false, error: { message: 'Invalid celebration type' } });
@@ -94,7 +94,7 @@ const MembersController = {
    */
   async list(req, res, next) {
     try {
-      const { search, status, zoneId, limit, offset } = req.query;
+      const { search, status, zoneId, isBaptized, gender, limit, offset } = req.query;
       const sessionUser = req.session?.user;
       if (sessionUser?.role === 'zone_leader' && !sessionUser.zoneId) {
         return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
@@ -105,6 +105,8 @@ const MembersController = {
         search,
         status,
         zoneId: effectiveZoneId,
+        isBaptized,
+        gender,
         limit: limit ? parseInt(limit, 10) : 100,
         offset: offset ? parseInt(offset, 10) : 0,
       });
@@ -193,6 +195,7 @@ const MembersController = {
         status: 'Visitor',
         role: req.body.role || 'Member',
         joinDate: req.body.joinDate,
+        zoneId: instance.zoneId || null,
       };
       delete data.instanceId;
       const member = await MembersService.create(data);

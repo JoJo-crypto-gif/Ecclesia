@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Aperture, User, Upload, Camera, Mail, Phone, MapPin, 
-  AlertCircle, Briefcase, Calendar, ArrowLeft, ArrowRight, CheckCircle2, Megaphone 
+  AlertCircle, Briefcase, Calendar, ArrowLeft, ArrowRight, CheckCircle2, Megaphone, Plus, Trash2 
 } from 'lucide-react';
 import Modal from '../Modal';
-import { Member, MemberStatus, Zone } from '../../types';
+import { Member, MemberChild, MemberStatus, Zone } from '../../types';
 
 interface MemberWizardModalProps {
   isOpen: boolean;
@@ -110,33 +110,76 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
     }
   };
 
-  const handleNextStep = () => {
+  const [errors, setErrors] = useState<string[]>([]);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validatePhone = (phone: string) => /^\d{10}$/.test(phone.replace(/\D/g, ''));
+
+  const validateCurrentStep = (): boolean => {
+    const newErrors: string[] = [];
     if (currentStep === 1) {
-      if (!formData.firstName || !formData.lastName) {
-        alert("Please enter first and last name.");
-        return;
+      if (!formData.firstName || !formData.lastName) newErrors.push("First and last name are required.");
+      if (!formData.motherName || !formData.fatherName) newErrors.push("Mother and Father names are required.");
+      if (formData.email && !validateEmail(formData.email)) newErrors.push("Invalid email address.");
+      if (formData.phone && !validatePhone(formData.phone)) newErrors.push("Phone number must be exactly 10 digits.");
+      if (formData.children && formData.children.length > 0) {
+        formData.children.forEach((child, i) => {
+          if (child.phone && !validatePhone(child.phone)) {
+            newErrors.push(`Child ${i + 1} (${child.name || 'unnamed'}): Phone number must be exactly 10 digits.`);
+          }
+        });
       }
+    } else if (currentStep === 2) {
+      if (!formData.address) newErrors.push("Residential address is required.");
+      if (!formData.maritalStatus) newErrors.push("Marital status is required.");
+      if (formData.maritalStatus === 'Married') {
+        if (!formData.spouseName) newErrors.push("Spouse name is required when married.");
+        if (!formData.spousePhone || !validatePhone(formData.spousePhone)) newErrors.push("Spouse phone number must be exactly 10 digits.");
+      }
+      if (!formData.emergencyContact) newErrors.push("Emergency contact name is required.");
+      if (!formData.emergencyPhone || !validatePhone(formData.emergencyPhone)) newErrors.push("Emergency contact phone must be exactly 10 digits.");
     }
+    setErrors(newErrors);
+    return newErrors.length === 0;
+  };
+
+  const handleNextStep = () => {
+    if (!validateCurrentStep()) return;
+    setErrors([]);
     setDirection('right');
     setCurrentStep(prev => Math.min(prev + 1, 3));
   };
 
   const handlePrevStep = () => {
+    setErrors([]);
     setDirection('left');
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
   const handleSave = () => {
+    if (!validateCurrentStep()) return;
+    
     if (formData.firstName && formData.lastName) {
+      // Normalize Marital Status
       const normalizedMaritalStatus = formData.maritalStatus || null;
-      const normalizedMarriageDate = normalizedMaritalStatus === 'Married'
-        ? (formData.marriageDate || null)
-        : null;
+      const isMarried = normalizedMaritalStatus === 'Married';
+      
+      // Normalize Baptism
+      const isBaptized = formData.isBaptized === true;
 
       const normalizedPayload = {
         ...formData,
         maritalStatus: normalizedMaritalStatus,
-        marriageDate: normalizedMarriageDate
+        marriageDate: isMarried ? (formData.marriageDate || null) : null,
+        spouseName: isMarried ? (formData.spouseName || null) : null,
+        spousePhone: isMarried ? (formData.spousePhone || null) : null,
+        
+        isBaptized,
+        baptismDate: isBaptized ? (formData.baptismDate || null) : null,
+        baptizedBy: isBaptized ? (formData.baptizedBy || null) : null,
+        baptismMethod: isBaptized ? (formData.baptismMethod || null) : null,
+        baptismChurch: isBaptized ? (formData.baptismChurch || null) : null,
       };
 
       const payload = isZoneLocked && lockedZoneId
@@ -178,6 +221,24 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
       >
         <div className="p-6">
             {renderStepIndicator()}
+            
+            {errors.length > 0 && (
+              <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20">
+                <div className="flex items-start gap-3">
+                  <div className="p-1 bg-rose-100 rounded-lg text-rose-600 dark:bg-rose-500/20 dark:text-rose-400">
+                    <AlertCircle size={16} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-rose-800 dark:text-rose-300 mb-1">Please fix the following errors:</h4>
+                    <ul className="list-disc list-inside text-xs text-rose-600 dark:text-rose-400 space-y-0.5">
+                      {errors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="min-h-[340px] overflow-hidden relative">
                 {/* STEP 1: PERSONAL INFO */}
@@ -243,7 +304,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">First Name</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">First Name <span className="text-rose-500">*</span></label>
                                 <input 
                                     type="text" 
                                     value={formData.firstName || ''} 
@@ -253,7 +314,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Last Name</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Last Name <span className="text-rose-500">*</span></label>
                                 <input 
                                     type="text" 
                                     value={formData.lastName || ''} 
@@ -271,7 +332,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                 type="date" 
                                 value={formData.dob || ''} 
                                 onChange={e => setFormData({...formData, dob: e.target.value})}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                                 />
                             </div>
                             <div>
@@ -279,12 +340,255 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                 <select 
                                     value={formData.gender || 'Male'}
                                     onChange={e => setFormData({...formData, gender: e.target.value as any})}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                    className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                                 >
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
                                     <option value="Other">Other</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        {/* Marital Status (Moved to Step 1) */}
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Marital Status <span className="text-rose-500">*</span></label>
+                           <select
+                               value={formData.maritalStatus || ''}
+                               onChange={e => {
+                                   const maritalStatus = e.target.value;
+                                   setFormData({
+                                       ...formData,
+                                       maritalStatus: maritalStatus as any,
+                                       marriageDate: maritalStatus === 'Married' ? (formData.marriageDate || '') : null,
+                                       spouseName: maritalStatus === 'Married' ? (formData.spouseName || '') : null,
+                                       spousePhone: maritalStatus === 'Married' ? (formData.spousePhone || '') : null
+                                   });
+                               }}
+                               className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                           >
+                               <option value="">-- Select Status --</option>
+                               <option value="Single">Single</option>
+                               <option value="Married">Married</option>
+                               <option value="Divorced">Divorced</option>
+                               <option value="Widowed">Widowed</option>
+                               <option value="Separated">Separated</option>
+                           </select>
+                        </div>
+
+                        {formData.maritalStatus === 'Married' && (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl dark:bg-slate-800/60 dark:border-slate-700 space-y-4">
+                              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 dark:text-slate-400">Marriage Details</h4>
+                              <div>
+                                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Date of Marriage</label>
+                                  <input
+                                      type="date"
+                                      value={formData.marriageDate || ''}
+                                      onChange={e => setFormData({ ...formData, marriageDate: e.target.value })}
+                                      className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white text-slate-600"
+                                  />
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div>
+                                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Spouse's Name <span className="text-rose-500">*</span></label>
+                                      <input
+                                          type="text"
+                                          value={formData.spouseName || ''}
+                                          onChange={e => setFormData({ ...formData, spouseName: e.target.value })}
+                                          placeholder="Full Name"
+                                          className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Spouse's Contact <span className="text-rose-500">*</span></label>
+                                      <div className="relative">
+                                          <input
+                                              type="tel"
+                                              maxLength={10}
+                                              value={formData.spousePhone || ''}
+                                              onChange={e => {
+                                                  const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                                  setFormData({ ...formData, spousePhone: val });
+                                                  setTouched({ ...touched, spousePhone: true });
+                                              }}
+                                              onBlur={() => setTouched({ ...touched, spousePhone: true })}
+                                              placeholder="10 digits"
+                                              className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                          />
+                                          {touched.spousePhone && formData.spousePhone && formData.spousePhone.length > 0 && formData.spousePhone.length < 10 && (
+                                              <span className="text-[10px] text-rose-500 absolute -bottom-4 left-2">Must be exactly 10 digits</span>
+                                          )}
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                        )}
+
+                        {/* Parent Details */}
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 dark:text-slate-400">Family Details</h4>
+                            <div className="grid grid-cols-2 gap-3">
+                                
+                                {/* Mother Card */}
+                                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-full bg-pink-100 dark:bg-pink-500/20 flex items-center justify-center shrink-0">
+                                            <span className="text-xs">👩</span>
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider dark:text-slate-400">Mother <span className="text-rose-500">*</span></span>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={formData.motherName || ''} 
+                                        onChange={e => setFormData({...formData, motherName: e.target.value})}
+                                        className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:text-white placeholder:text-slate-400"
+                                        placeholder="Full name"
+                                    />
+                                    <div className="flex gap-1.5">
+                                        {(['Alive', 'Deceased', 'Unknown'] as const).map(s => (
+                                            <button
+                                                key={s}
+                                                type="button"
+                                                onClick={() => setFormData({...formData, motherStatus: formData.motherStatus === s ? null : s})}
+                                                className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition-all duration-150 ${
+                                                    formData.motherStatus === s
+                                                        ? s === 'Alive'    ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-500/30'
+                                                        : s === 'Deceased' ? 'bg-rose-500 text-white border-rose-500 shadow-sm shadow-rose-500/30'
+                                                        : 'bg-slate-500 text-white border-slate-500 shadow-sm'
+                                                        : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500'
+                                                }`}
+                                            >
+                                                {s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Father Card */}
+                                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center shrink-0">
+                                            <span className="text-xs">👨</span>
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider dark:text-slate-400">Father <span className="text-rose-500">*</span></span>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={formData.fatherName || ''} 
+                                        onChange={e => setFormData({...formData, fatherName: e.target.value})}
+                                        className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:text-white placeholder:text-slate-400"
+                                        placeholder="Full name"
+                                    />
+                                    <div className="flex gap-1.5">
+                                        {(['Alive', 'Deceased', 'Unknown'] as const).map(s => (
+                                            <button
+                                                key={s}
+                                                type="button"
+                                                onClick={() => setFormData({...formData, fatherStatus: formData.fatherStatus === s ? null : s})}
+                                                className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg border transition-all duration-150 ${
+                                                    formData.fatherStatus === s
+                                                        ? s === 'Alive'    ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-500/30'
+                                                        : s === 'Deceased' ? 'bg-rose-500 text-white border-rose-500 shadow-sm shadow-rose-500/30'
+                                                        : 'bg-slate-500 text-white border-slate-500 shadow-sm'
+                                                        : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500'
+                                                }`}
+                                            >
+                                                {s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        {/* Children Section */}
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400 flex items-center gap-2">
+                                    👶 Children {(formData.children?.length || 0) > 0 && (
+                                        <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full dark:bg-indigo-500/20 dark:text-indigo-400">
+                                            {formData.children?.length}
+                                        </span>
+                                    )}
+                                </h4>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({
+                                        ...formData,
+                                        children: [...(formData.children || []), { name: '', phone: '' }]
+                                    })}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 dark:hover:bg-indigo-500/20"
+                                >
+                                    <Plus size={14} /> Add Child
+                                </button>
+                            </div>
+
+                            {(!formData.children || formData.children.length === 0) && (
+                                <div className="text-center py-6 text-slate-400 text-sm dark:text-slate-500">
+                                    No children added yet
+                                </div>
+                            )}
+
+                            <div className="space-y-3">
+                                {(formData.children || []).map((child: MemberChild, index: number) => (
+                                    <div key={index} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0 mt-1">
+                                                <span className="text-sm">👶</span>
+                                            </div>
+                                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 dark:text-slate-400">Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={child.name || ''}
+                                                        onChange={e => {
+                                                            const updated = [...(formData.children || [])];
+                                                            updated[index] = { ...updated[index], name: e.target.value };
+                                                            setFormData({ ...formData, children: updated });
+                                                        }}
+                                                        placeholder="Child's name"
+                                                        className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:text-white placeholder:text-slate-400"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 dark:text-slate-400">Phone <span className="font-normal lowercase opacity-70">(optional)</span></label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="tel"
+                                                            maxLength={10}
+                                                            value={child.phone || ''}
+                                                            onChange={e => {
+                                                                const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                                                const updated = [...(formData.children || [])];
+                                                                updated[index] = { ...updated[index], phone: val };
+                                                                setFormData({ ...formData, children: updated });
+                                                                setTouched({ ...touched, [`child_${index}`]: true });
+                                                            }}
+                                                            onBlur={() => setTouched({ ...touched, [`child_${index}`]: true })}
+                                                            placeholder="10 digits"
+                                                            className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:text-white placeholder:text-slate-400"
+                                                        />
+                                                        {touched[`child_${index}`] && child.phone && child.phone.length > 0 && child.phone.length < 10 && (
+                                                            <span className="text-[10px] text-rose-500 absolute -bottom-4 left-1">Must be exactly 10 digits</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const updated = (formData.children || []).filter((_: MemberChild, i: number) => i !== index);
+                                                    setFormData({ ...formData, children: updated });
+                                                }}
+                                                className="mt-1 p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all dark:hover:bg-rose-500/10"
+                                                title="Remove child"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -306,27 +610,43 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                     <input 
                                         type="email" 
                                         value={formData.email || ''} 
-                                        onChange={e => setFormData({...formData, email: e.target.value})}
+                                        onChange={e => {
+                                            setFormData({...formData, email: e.target.value});
+                                            setTouched({...touched, email: true});
+                                        }}
+                                        onBlur={() => setTouched({...touched, email: true})}
                                         className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
                                         placeholder="jane.doe@example.com"
                                     />
+                                    {touched.email && formData.email && !validateEmail(formData.email) && (
+                                        <span className="text-[10px] text-rose-500 absolute -bottom-4 left-4">Invalid email address</span>
+                                    )}
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Phone Number</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Phone Number <span className="text-rose-500">*</span></label>
                                 <div className="relative">
                                     <Phone className="absolute left-4 top-3.5 text-slate-400" size={18} />
                                     <input 
-                                        type="text" 
+                                        type="tel" 
+                                        maxLength={10}
                                         value={formData.phone || ''} 
-                                        onChange={e => setFormData({...formData, phone: e.target.value})}
+                                        onChange={e => {
+                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            setFormData({...formData, phone: val});
+                                            setTouched({...touched, phone: true});
+                                        }}
+                                        onBlur={() => setTouched({...touched, phone: true})}
                                         className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
-                                        placeholder="(555) 000-0000"
+                                        placeholder="10 digits"
                                     />
+                                    {touched.phone && formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
+                                        <span className="text-[10px] text-rose-500 absolute -bottom-4 left-4">Must be exactly 10 digits</span>
+                                    )}
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Residential Address</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Residential Address <span className="text-rose-500">*</span></label>
                                 <div className="relative">
                                     <MapPin className="absolute left-4 top-3.5 text-slate-400" size={18} />
                                     <textarea 
@@ -345,7 +665,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                 </h4>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Contact Name</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Contact Name <span className="text-rose-500">*</span></label>
                                         <input 
                                             type="text" 
                                             value={formData.emergencyContact || ''} 
@@ -355,14 +675,25 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Contact Phone</label>
-                                        <input 
-                                            type="text" 
-                                            value={formData.emergencyPhone || ''} 
-                                            onChange={e => setFormData({...formData, emergencyPhone: e.target.value})}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
-                                            placeholder="Phone"
-                                        />
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Contact Phone <span className="text-rose-500">*</span></label>
+                                        <div className="relative">
+                                            <input 
+                                                type="tel" 
+                                                maxLength={10}
+                                                value={formData.emergencyPhone || ''} 
+                                                onChange={e => {
+                                                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                                    setFormData({...formData, emergencyPhone: val});
+                                                    setTouched({...touched, emergencyPhone: true});
+                                                }}
+                                                onBlur={() => setTouched({...touched, emergencyPhone: true})}
+                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                                placeholder="10 digits"
+                                            />
+                                            {touched.emergencyPhone && formData.emergencyPhone && formData.emergencyPhone.length > 0 && formData.emergencyPhone.length < 10 && (
+                                                <span className="text-[10px] text-rose-500 absolute -bottom-4 left-2">Must be exactly 10 digits</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -391,7 +722,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                   <select 
                                   value={formData.zoneId || ''}
                                   onChange={e => setFormData({...formData, zoneId: e.target.value})}
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                  className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                                   >
                                   <option value="">-- Select --</option>
                                   {zones.map(z => (
@@ -405,7 +736,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                 <select 
                                     value={formData.status || MemberStatus.Active}
                                     onChange={e => setFormData({...formData, status: e.target.value as MemberStatus})}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                    className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                                 >
                                     <option value={MemberStatus.Active}>Active</option>
                                     <option value={MemberStatus.Inactive}>Inactive</option>
@@ -416,16 +747,22 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
 
                         <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Role / Ministry</label>
-                           <div className="relative">
-                                <Briefcase className="absolute left-4 top-3.5 text-slate-400" size={18} />
-                                <input 
-                                    type="text" 
-                                    value={formData.role || ''} 
-                                    onChange={e => setFormData({...formData, role: e.target.value})}
-                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
-                                    placeholder="e.g. Choir, Usher, Member"
-                                />
-                           </div>
+                           <select 
+                               value={formData.role || ''} 
+                               onChange={e => setFormData({...formData, role: e.target.value})}
+                               className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                           >
+                               <option value="">-- Select Role --</option>
+                               <option value="Member">Member</option>
+                               <option value="Usher">Usher</option>
+                               <option value="Choir">Choir</option>
+                               <option value="Media">Media</option>
+                               <option value="Sunday School">Sunday School</option>
+                               <option value="Deacon">Deacon</option>
+                               <option value="Elder">Elder</option>
+                               <option value="Pastor">Pastor</option>
+                               <option value="Other">Other</option>
+                           </select>
                         </div>
 
                         <div>
@@ -448,7 +785,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                 <select 
                                     value={formData.discoverySource || ''}
                                     onChange={e => setFormData({...formData, discoverySource: e.target.value})}
-                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white appearance-none"
+                                    className="w-full h-[50px] pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white appearance-none"
                                 >
                                     <option value="">-- Select Source --</option>
                                     <option value="Social Media">Social Media</option>
@@ -464,40 +801,99 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                             </div>
                         </div>
 
-                        <div>
-                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Marital Status</label>
-                           <select
-                               value={formData.maritalStatus || ''}
-                               onChange={e => {
-                                   const maritalStatus = e.target.value;
-                                   setFormData({
-                                       ...formData,
-                                       maritalStatus: maritalStatus as any,
-                                       marriageDate: maritalStatus === 'Married' ? (formData.marriageDate || '') : null
-                                   });
-                               }}
-                               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                           >
-                               <option value="">-- Select Status --</option>
-                               <option value="Single">Single</option>
-                               <option value="Married">Married</option>
-                               <option value="Divorced">Divorced</option>
-                               <option value="Widowed">Widowed</option>
-                               <option value="Separated">Separated</option>
-                           </select>
-                        </div>
+                        {/* Baptism Details */}
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                             <div className="flex items-center justify-between mb-4">
+                                 <div>
+                                     <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                         💧 Baptism Status
+                                     </h4>
+                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mt-1 dark:text-slate-400">Has the member been baptized?</p>
+                                 </div>
+                                 <div className="flex bg-slate-100 p-1 rounded-lg dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                     <button
+                                         type="button"
+                                         onClick={() => setFormData({ 
+                                            ...formData, 
+                                            isBaptized: true 
+                                         })}
+                                         className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                             formData.isBaptized === true
+                                                 ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-indigo-400'
+                                                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                         }`}
+                                     >
+                                         Yes
+                                     </button>
+                                     <button
+                                         type="button"
+                                         onClick={() => setFormData({ 
+                                            ...formData, 
+                                            isBaptized: false,
+                                            baptismDate: null,
+                                            baptizedBy: null,
+                                            baptismMethod: null,
+                                            baptismChurch: null
+                                         })}
+                                         className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                                             formData.isBaptized === false || formData.isBaptized === undefined
+                                                 ? 'bg-white text-slate-800 shadow-sm dark:bg-slate-700 dark:text-white'
+                                                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                         }`}
+                                     >
+                                         No
+                                     </button>
+                                 </div>
+                             </div>
 
-                        {formData.maritalStatus === 'Married' && (
-                          <div>
-                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Date of Marriage</label>
-                              <input
-                                  type="date"
-                                  value={formData.marriageDate || ''}
-                                  onChange={e => setFormData({ ...formData, marriageDate: e.target.value })}
-                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                              />
-                          </div>
-                        )}
+                             {formData.isBaptized && (
+                                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl dark:bg-slate-800/60 dark:border-slate-700 space-y-4">
+                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                         <div>
+                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Date of Baptism</label>
+                                             <input
+                                                 type="date"
+                                                 value={formData.baptismDate || ''}
+                                                 onChange={e => setFormData({ ...formData, baptismDate: e.target.value })}
+                                                 className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white text-slate-600"
+                                             />
+                                         </div>
+                                         <div>
+                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Method</label>
+                                             <select
+                                                 value={formData.baptismMethod || ''}
+                                                 onChange={e => setFormData({ ...formData, baptismMethod: e.target.value as any })}
+                                                 className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                                             >
+                                                 <option value="">-- Select Method --</option>
+                                                 <option value="Immersion">Immersion</option>
+                                                 <option value="Sprinkling">Sprinkling</option>
+                                             </select>
+                                         </div>
+                                     </div>
+                                     <div>
+                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Officiating Minister</label>
+                                         <input
+                                             type="text"
+                                             value={formData.baptizedBy || ''}
+                                             onChange={e => setFormData({ ...formData, baptizedBy: e.target.value })}
+                                             placeholder="Pastor's Name"
+                                             className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                         />
+                                     </div>
+                                     <div>
+                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Church / Location</label>
+                                         <input
+                                             type="text"
+                                             value={formData.baptismChurch || ''}
+                                             onChange={e => setFormData({ ...formData, baptismChurch: e.target.value })}
+                                             placeholder="Where were they baptized?"
+                                             className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                         />
+                                     </div>
+                                 </div>
+                             )}
+                        </div>
 
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Occupation</label>

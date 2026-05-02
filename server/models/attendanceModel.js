@@ -76,9 +76,26 @@ const AttendanceModel = {
           (SELECT COUNT(DISTINCT a.member_id) FROM attendance a WHERE a.member_id IS NOT NULL) as unique_members,
           (SELECT COUNT(*) FROM attendance a WHERE a.visitor_name IS NOT NULL) as total_visitors,
           (SELECT COUNT(*) FROM event_instances WHERE status = 'completed') as completed_events,
-          (SELECT COUNT(*) FROM event_instances WHERE status = 'scheduled' AND date >= CURRENT_DATE) as upcoming_events
+          (SELECT COUNT(*) FROM event_instances WHERE status = 'scheduled' AND date >= CURRENT_DATE) as upcoming_events,
+          COALESCE(
+            (
+              SELECT
+                CASE
+                  WHEN COUNT(DISTINCT ei.id) = 0 THEN 0
+                  WHEN (SELECT COUNT(*) FROM members WHERE status = 'Active') = 0 THEN 0
+                  ELSE
+                    ROUND((COUNT(a.id)::numeric / COUNT(DISTINCT ei.id)::numeric) / (SELECT COUNT(*) FROM members WHERE status = 'Active')::numeric * 100)
+                END
+              FROM event_instances ei
+              LEFT JOIN attendance a ON a.instance_id = ei.id
+              WHERE ei.status = 'completed' AND ei.date >= CURRENT_DATE - INTERVAL '30 days'
+            ), 0
+          ) as avg_attendance_percentage
       `);
-      return result.rows[0];
+      return {
+        ...result.rows[0],
+        avg_attendance_percentage: parseInt(result.rows[0].avg_attendance_percentage, 10)
+      };
     }
 
     const result = await query(
@@ -106,11 +123,29 @@ const AttendanceModel = {
           (SELECT COUNT(*)
              FROM event_instances ei
              JOIN events e ON e.id = ei.event_id
-            WHERE ei.status = 'scheduled' AND ei.date >= CURRENT_DATE AND e.zone_id = $1) as upcoming_events
+            WHERE ei.status = 'scheduled' AND ei.date >= CURRENT_DATE AND e.zone_id = $1) as upcoming_events,
+          COALESCE(
+            (
+              SELECT
+                CASE
+                  WHEN COUNT(DISTINCT ei.id) = 0 THEN 0
+                  WHEN (SELECT COUNT(*) FROM members WHERE status = 'Active' AND zone_id = $1) = 0 THEN 0
+                  ELSE
+                    ROUND((COUNT(a.id)::numeric / COUNT(DISTINCT ei.id)::numeric) / (SELECT COUNT(*) FROM members WHERE status = 'Active' AND zone_id = $1)::numeric * 100)
+                END
+              FROM event_instances ei
+              JOIN events e ON e.id = ei.event_id
+              LEFT JOIN attendance a ON a.instance_id = ei.id
+              WHERE ei.status = 'completed' AND ei.date >= CURRENT_DATE - INTERVAL '30 days' AND e.zone_id = $1
+            ), 0
+          ) as avg_attendance_percentage
       `,
       [zoneId]
     );
-    return result.rows[0];
+    return {
+      ...result.rows[0],
+      avg_attendance_percentage: parseInt(result.rows[0].avg_attendance_percentage, 10)
+    };
   },
 
   // ─── Get attendance for a member across all events ─────
@@ -303,32 +338,42 @@ const AttendanceModel = {
   },
 
   // ─── Find Member by ID, Email, or Phone ────────────────
-  async findMemberByIdentifier(identifier) {
+  async findMemberByIdentifier(identifier, { zoneId } = {}) {
     const value = identifier.trim();
     if (!value) return null;
 
+    const params = [value];
+    const zoneFilter = zoneId ? ` AND zone_id = $${params.push(zoneId)}` : '';
     const result = await query(
       `SELECT * FROM members 
-       WHERE id::text = $1 
-          OR LOWER(email) = LOWER($1) 
-          OR phone = $1
+       WHERE (
+         id::text = $1 
+         OR LOWER(email) = LOWER($1) 
+         OR phone = $1
+       )
+       ${zoneFilter}
        LIMIT 1`,
-      [value]
+      params
     );
     return result.rows[0];
   },
 
   // ─── Find Member by Email or Phone (public-safe lookup) ─
-  async findMemberByContactIdentifier(identifier) {
+  async findMemberByContactIdentifier(identifier, { zoneId } = {}) {
     const value = identifier.trim();
     if (!value) return null;
 
+    const params = [value];
+    const zoneFilter = zoneId ? ` AND zone_id = $${params.push(zoneId)}` : '';
     const result = await query(
       `SELECT * FROM members
-       WHERE LOWER(email) = LOWER($1)
-          OR phone = $1
+       WHERE (
+         LOWER(email) = LOWER($1)
+         OR phone = $1
+       )
+       ${zoneFilter}
        LIMIT 1`,
-      [value]
+      params
     );
     return result.rows[0] || null;
   },
@@ -347,11 +392,11 @@ const AttendanceModel = {
           z.name,
           COUNT(DISTINCT m.id)::int AS total_members,
           COUNT(DISTINCT CASE
-            WHEN a.id IS NOT NULL THEN m.id
+            WHEN a.id IS NOT NULL AND m.status = 'Active' THEN m.id
           END)::int AS active_attendees,
           COUNT(a.id)::int AS total_checkins
         FROM zones z
-        LEFT JOIN members m ON m.zone_id = z.id AND m.status = 'Active'
+        LEFT JOIN members m ON m.zone_id = z.id
         LEFT JOIN attendance a ON a.member_id = m.id
           AND a.checked_in_at >= CURRENT_DATE - INTERVAL '3 months'
         GROUP BY z.id, z.name

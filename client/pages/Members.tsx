@@ -4,7 +4,7 @@ import { Member, MemberStatus, User as AppUser } from '../types';
 import { 
   Search, Plus, Edit2, Trash2, Mail, Phone,
   CheckCircle2, XCircle, User as UserIcon, LayoutGrid, List, CheckSquare, Square, 
-  Download, Users, Layers, X, Eye, ChevronLeft, ChevronRight
+  Download, Users, Layers, X, Eye, ChevronLeft, ChevronRight, Filter, FilterX
 } from 'lucide-react';
 import MemberWizardModal from '../components/members/MemberWizardModal';
 import ViewMemberModal from '../components/members/ViewMemberModal';
@@ -20,13 +20,17 @@ interface MembersProps {
 const Members: React.FC<MembersProps> = ({ user }) => {
   const { 
     members, zones, stats, loading, 
-    pagination, setPage, setLimit, setSearchTerm, setStatusFilter, 
+    pagination, setPage, setLimit, setSearchTerm, setStatusFilter, setZoneFilter, setBaptizedFilter, setGenderFilter,
     addMember, updateMember, deleteMember, bulkUpdateMembers, bulkDeleteMembers 
   } = useData();
   
   // Local UI state
   const [localSearch, setLocalSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState('All');
+  const [activeZone, setActiveZone] = useState('All');
+  const [activeBaptized, setActiveBaptized] = useState('All');
+  const [activeGender, setActiveGender] = useState('All');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   
   // Selection state
@@ -55,6 +59,15 @@ const Members: React.FC<MembersProps> = ({ user }) => {
   const handleStatusFilterChange = (status: string) => {
     setActiveStatus(status);
     setStatusFilter(status);
+    setPage(1);
+  };
+
+  const clearAllFilters = () => {
+    setLocalSearch(''); setSearchTerm('');
+    setActiveStatus('All'); setStatusFilter('All');
+    setActiveZone('All'); setZoneFilter('All');
+    setActiveBaptized('All'); setBaptizedFilter('All');
+    setActiveGender('All'); setGenderFilter('All');
     setPage(1);
   };
 
@@ -206,17 +219,17 @@ const Members: React.FC<MembersProps> = ({ user }) => {
             <div className="min-w-0"><div className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white truncate">{stats.activeMembers}</div><div className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-slate-400">Active</div></div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3 sm:gap-4 dark:bg-slate-900 dark:border-slate-800 transition-all hover:shadow-md">
-            <div className="p-2 sm:p-3 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 flex-shrink-0"><UserIcon size={20} /></div>
+            <div className="p-2 sm:p-3 rounded-lg bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 flex-shrink-0"><XCircle size={20} /></div>
             <div className="min-w-0">
               <div className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white truncate">
-                {stats.inactiveMembers + stats.visitorMembers}
+                {stats.inactiveMembers}
               </div>
-              <div className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-slate-400">Other</div>
+              <div className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-slate-400">Inactive</div>
             </div>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3 sm:gap-4 dark:bg-slate-900 dark:border-slate-800 transition-all hover:shadow-md">
-            <div className="p-2 sm:p-3 rounded-lg bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400 flex-shrink-0"><Layers size={20} /></div>
-            <div className="min-w-0"><div className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white truncate">{stats.totalZones}</div><div className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-slate-400">Zones</div></div>
+            <div className="p-2 sm:p-3 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 flex-shrink-0"><XCircle size={20} /></div>
+            <div className="min-w-0"><div className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white truncate">{stats.unbaptizedMembers}</div><div className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide dark:text-slate-400">Not Baptized</div></div>
           </div>
         </div>
       </div>
@@ -230,6 +243,14 @@ const Members: React.FC<MembersProps> = ({ user }) => {
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
+            {/* Admin-only Advanced Filters Toggle */}
+            {!isZoneLeader && (
+              <button onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-bold transition-all whitespace-nowrap ${showAdvancedFilters ? 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'}`}>
+                <Filter size={16} /> Advanced
+              </button>
+            )}
+            
             <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
               {['All', MemberStatus.Active, MemberStatus.Visitor, MemberStatus.Inactive].map(s => (
                 <button key={s} onClick={() => handleStatusFilterChange(s)}
@@ -244,6 +265,65 @@ const Members: React.FC<MembersProps> = ({ user }) => {
             </div>
           </div>
         </div>
+
+        {/* Advanced Filters Panel */}
+        {showAdvancedFilters && !isZoneLeader && (
+          <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl dark:bg-slate-800 dark:border-slate-700 animate-enter">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Zone</label>
+                <select value={activeZone} onChange={e => { setActiveZone(e.target.value); setZoneFilter(e.target.value); setPage(1); }} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white">
+                  <option value="All">All Zones</option>
+                  {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Baptism Status</label>
+                <select value={activeBaptized} onChange={e => { setActiveBaptized(e.target.value); setBaptizedFilter(e.target.value); setPage(1); }} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white">
+                  <option value="All">Any</option>
+                  <option value="Baptized">Baptized</option>
+                  <option value="Not Baptized">Not Baptized</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Gender</label>
+                <select value={activeGender} onChange={e => { setActiveGender(e.target.value); setGenderFilter(e.target.value); setPage(1); }} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white">
+                  <option value="All">Any</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+            </div>
+            
+            {/* Active Filter Chips */}
+            {(activeZone !== 'All' || activeBaptized !== 'All' || activeGender !== 'All') && (
+              <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-slate-400 mr-1">Active:</span>
+                {activeZone !== 'All' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-100 text-indigo-700 text-xs font-bold dark:bg-indigo-500/20 dark:text-indigo-300">
+                    Zone: {zones.find(z => z.id === activeZone)?.name || 'Unknown'}
+                    <button onClick={() => { setActiveZone('All'); setZoneFilter('All'); setPage(1); }} className="hover:text-indigo-900 dark:hover:text-indigo-100"><X size={12} /></button>
+                  </span>
+                )}
+                {activeBaptized !== 'All' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 text-xs font-bold dark:bg-emerald-500/20 dark:text-emerald-300">
+                    {activeBaptized}
+                    <button onClick={() => { setActiveBaptized('All'); setBaptizedFilter('All'); setPage(1); }} className="hover:text-emerald-900 dark:hover:text-emerald-100"><X size={12} /></button>
+                  </span>
+                )}
+                {activeGender !== 'All' && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 text-amber-700 text-xs font-bold dark:bg-amber-500/20 dark:text-amber-300">
+                    Gender: {activeGender}
+                    <button onClick={() => { setActiveGender('All'); setGenderFilter('All'); setPage(1); }} className="hover:text-amber-900 dark:hover:text-amber-100"><X size={12} /></button>
+                  </span>
+                )}
+                <button onClick={() => { setActiveZone('All'); setZoneFilter('All'); setActiveBaptized('All'); setBaptizedFilter('All'); setActiveGender('All'); setGenderFilter('All'); setPage(1); }} className="ml-auto text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1 dark:text-slate-400 dark:hover:text-slate-200">
+                  <FilterX size={14} /> Clear Advanced
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Content Area */}
@@ -257,7 +337,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
           <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-400 dark:bg-slate-800"><Search size={32} /></div>
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white">No members found</h3>
           <p className="max-w-xs mx-auto mt-2 text-sm">Try adjusting your search or filters.</p>
-          <button onClick={() => { setLocalSearch(''); setSearchTerm(''); setActiveStatus('All'); setStatusFilter('All'); setPage(1); }} className="mt-6 text-indigo-600 font-semibold text-sm hover:underline dark:text-indigo-400">Clear all filters</button>
+          <button onClick={clearAllFilters} className="mt-6 text-indigo-600 font-semibold text-sm hover:underline dark:text-indigo-400">Clear all filters</button>
         </div>
       ) : (
         <>

@@ -38,6 +38,29 @@ export interface Member {
   discoverySource?: string;
   maritalStatus?: 'Single' | 'Married' | 'Divorced' | 'Widowed' | 'Separated' | null;
   marriageDate?: string | null;
+  spouseName?: string | null;
+  spousePhone?: string | null;
+  
+  // Parent details
+  motherName?: string;
+  motherStatus?: 'Alive' | 'Deceased' | 'Unknown' | null;
+  fatherName?: string;
+  fatherStatus?: 'Alive' | 'Deceased' | 'Unknown' | null;
+
+  // Baptism details
+  isBaptized?: boolean;
+  baptismDate?: string | null;
+  baptizedBy?: string | null;
+  baptismMethod?: 'Immersion' | 'Sprinkling' | null;
+  baptismChurch?: string | null;
+
+  // Children
+  children?: MemberChild[];
+}
+
+export interface MemberChild {
+  name: string;
+  phone?: string;
 }
 
 export interface DashboardStats {
@@ -46,7 +69,11 @@ export interface DashboardStats {
   activeMembers: number;
   inactiveMembers: number;
   visitorMembers: number;
+  unbaptizedMembers: number;
   recentGrowth: number; // percentage
+  totalMembersTrend?: number;
+  activeMembersTrend?: number;
+  avgAttendance?: number;
   discoveryDistribution?: { name: string; value: number }[];
 }
 
@@ -116,10 +143,26 @@ export interface Message {
   subject?: string;
   content: string;
   channel: 'email' | 'sms';
-  recipientType: 'all' | 'zone' | 'gender' | 'individual';
+  recipientType: 'all' | 'zone' | 'gender' | 'individual' | 'filter' | 'birthday' | 'anniversary' | 'absentee';
   recipientTarget?: string;
   recipientLabel: string;
   sentAt: string;
   status: 'sent' | 'scheduled' | 'failed';
+  recipientCount: number;
+}
+
+export interface ManualMessagePayload {
+  subject?: string;
+  content: string;
+  channel: 'email' | 'sms';
+  audienceType: 'filter' | 'individual';
+  filters?: {
+    zoneId?: string;
+    gender?: string;
+    isBaptized?: string;
+  };
+  memberId?: string;
+  memberIds?: string[];
+  recipientLabel: string;
   recipientCount: number;
 }

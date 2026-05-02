@@ -74,6 +74,10 @@ const AttendanceReportModal: React.FC<AttendanceReportModalProps> = ({
   }, [isOpen, fetchAllMembers]);
 
   const selectedInstance = instances.find(i => i.id === selectedInstanceId);
+  const eligibleMembers = useMemo(() => {
+    if (!event?.zoneId) return allMembers;
+    return allMembers.filter(member => member.zoneId === event.zoneId);
+  }, [allMembers, event?.zoneId]);
 
   // Build report data
   const currentReportData = useMemo(() => {
@@ -87,7 +91,7 @@ const AttendanceReportModal: React.FC<AttendanceReportModalProps> = ({
     );
 
     // Map all members (from full fetch) to a report item
-    const allItems = allMembers.map(member => {
+    const allItems = eligibleMembers.map(member => {
       const record = attendanceRecords.find(r => r.memberId === member.id);
       return {
         member,
@@ -121,7 +125,7 @@ const AttendanceReportModal: React.FC<AttendanceReportModalProps> = ({
 
     // Stats
     const stats = {
-      total: allMembers.length,
+      total: eligibleMembers.length,
       present: allItems.filter(i => i.isPresent).length + visitorItems.length,
       absent: allItems.filter(i => !i.isPresent).length
     };
@@ -154,7 +158,7 @@ const AttendanceReportModal: React.FC<AttendanceReportModalProps> = ({
     }
 
     return { items: filteredItems, stats };
-  }, [event, selectedInstanceId, attendanceRecords, allMembers, reportSearchTerm, reportTab]);
+  }, [event, selectedInstanceId, attendanceRecords, eligibleMembers, reportSearchTerm, reportTab]);
 
   const handlePrintReport = () => {
     if (!event || !selectedInstance) return;

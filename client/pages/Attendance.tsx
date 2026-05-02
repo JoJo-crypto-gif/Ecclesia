@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { Calendar, Plus, QrCode, Users, Scan, Repeat, Trash2, FileText, UserCheck, Clock, MapPin } from 'lucide-react';
+import { Calendar, Plus, QrCode, Users, Scan, Repeat, Trash2, FileText, UserCheck, Clock, MapPin, ChevronDown } from 'lucide-react';
 import Modal from '../components/Modal';
 import { ChurchEvent, EventInstance, AttendanceRecord, User } from '../types';
 import QrCodeModal from '../components/attendance/QrCodeModal';
 import ManualCheckInModal from '../components/attendance/ManualCheckInModal';
 import AttendanceReportModal from '../components/attendance/AttendanceReportModal';
+import EventInstancePickerModal from '../components/attendance/EventInstancePickerModal';
 
 interface AttendanceProps {
   user: User | null;
@@ -15,7 +16,7 @@ interface AttendanceProps {
 const Attendance: React.FC<AttendanceProps> = ({ user }) => {
   const { 
     events, addEvent, deleteEvent, members, zones,
-    fetchAllInstances, checkIn, fetchAttendance, removeAttendanceRecord
+    fetchInstances, checkIn, fetchAttendance, removeAttendanceRecord
   } = useData();
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,6 +30,7 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [instancePickerEventId, setInstancePickerEventId] = useState<string | null>(null);
 
   const [newEvent, setNewEvent] = useState({
     name: '',
@@ -48,38 +50,32 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
     return events;
   }, [events, user?.role, user?.zoneId]);
 
-  // Fetch a 4-month window of instances
+  // Load the full available instance list per event for the picker modal.
   const loadInstances = useCallback(async () => {
-    const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - 60);
-    const fromDate = pastDate.toISOString().split('T')[0];
+    const eventInstanceEntries = await Promise.all(
+      visibleEvents.map(async (event) => [event.id, await fetchInstances(event.id)] as const)
+    );
 
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 60);
-    const toDate = futureDate.toISOString().split('T')[0];
-
-    const allInstances = await fetchAllInstances(fromDate, toDate);
-    
-    // Map: eventId -> array of instances
     const instMap: Record<string, EventInstance[]> = {};
     const defaultIdsMap: Record<string, string> = {};
     const today = new Date().toISOString().split('T')[0];
 
-    for (const event of visibleEvents) {
-      const eventInstances = allInstances
-        .filter(inst => inst.eventId === event.id && inst.status !== 'cancelled')
+    for (const [eventId, instances] of eventInstanceEntries) {
+      const eventInstances = instances
+        .filter(inst => inst.status !== 'cancelled')
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-      instMap[event.id] = eventInstances;
+
+      instMap[eventId] = eventInstances;
 
       if (eventInstances.length > 0) {
         const upcomingEvent = eventInstances.find(i => i.date.split('T')[0] >= today);
-        defaultIdsMap[event.id] = upcomingEvent ? upcomingEvent.id : eventInstances[eventInstances.length - 1].id;
+        defaultIdsMap[eventId] = upcomingEvent ? upcomingEvent.id : eventInstances[eventInstances.length - 1].id;
       }
     }
+
     setAllInstancesMap(instMap);
     setSelectedInstanceIdMap(prev => ({ ...defaultIdsMap, ...prev })); // preserve user selection if it exists
-  }, [visibleEvents, fetchAllInstances]);
+  }, [visibleEvents, fetchInstances]);
 
   useEffect(() => {
     if (visibleEvents.length > 0) {
@@ -224,6 +220,14 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
             const totalCheckins = getAttendanceCount(event.id);
             const currentSelected = getSelectedInstance(event.id);
             const isPastEvent = currentSelected ? currentSelected.date.split('T')[0] < new Date().toISOString().split('T')[0] : false;
+            const selectedDate = currentSelected ? new Date(currentSelected.date) : null;
+            const dateLabel = selectedDate && !Number.isNaN(selectedDate.getTime())
+              ? selectedDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+              : 'Select a session';
+            const dateMeta = currentSelected
+              ? (isPastEvent ? 'Past session' : 'Upcoming session')
+              : 'No session selected';
+            const sessionCount = allInstancesMap[event.id]?.length || 0;
 
             return (
                 <div key={event.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group dark:bg-slate-900 dark:border-slate-800 dark:hover:shadow-none dark:hover:border-slate-700 hover-3d-card preserve-3d relative">
@@ -252,36 +256,29 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
                                 
                                 <h3 className="text-xl font-bold text-slate-800 mb-2 group-hover:text-indigo-600 transition-colors dark:text-white dark:group-hover:text-indigo-400 truncate pr-16">{currentSelected?.nameOverride || event.name}</h3>
                                 
-                                {/* Date Selection Dropdown */}
+                                {/* Session Selector */}
                                 <div className="mt-2 mb-3 relative z-20">
                                     {allInstancesMap[event.id]?.length > 0 ? (
-                                        <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden dark:bg-slate-900/50 dark:border-slate-800 transition-colors hover:border-indigo-300 dark:hover:border-indigo-500/50">
-                                            <div className="pl-3 pr-2 py-2 text-slate-400 dark:text-slate-500 border-r border-slate-200 dark:border-slate-700/50 flex-shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setInstancePickerEventId(event.id)}
+                                            className="w-full flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden dark:bg-slate-900/50 dark:border-slate-800 transition-colors hover:border-indigo-300 dark:hover:border-indigo-500/50"
+                                        >
+                                            <div className="pl-3 pr-2 py-3 text-slate-400 dark:text-slate-500 border-r border-slate-200 dark:border-slate-700/50 flex-shrink-0">
                                                 <Calendar size={14} />
                                             </div>
-                                            <div className="relative flex-1">
-                                                <select 
-                                                    value={selectedInstanceIdMap[event.id] || ''}
-                                                    onChange={(e) => setSelectedInstanceIdMap(prev => ({ ...prev, [event.id]: e.target.value }))}
-                                                    className="w-full bg-transparent px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none appearance-none cursor-pointer dark:text-slate-300"
-                                                >
-                                                    {allInstancesMap[event.id].map(inst => {
-                                                        const dateStr = inst.date.split('T')[0];
-                                                        const isPast = dateStr < new Date().toISOString().split('T')[0];
-                                                        return (
-                                                            <option key={inst.id} value={inst.id}>
-                                                                {new Date(inst.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                                                                {isPast ? ' (Past)' : ' (Upcoming)'}
-                                                                {inst.nameOverride ? ` - ${inst.nameOverride}` : ''}
-                                                            </option>
-                                                        );
-                                                    })}
-                                                </select>
-                                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400 dark:text-slate-500">
-                                                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
+                                            <div className="flex-1 text-left px-3 py-2 min-w-0">
+                                                <div className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
+                                                  {dateLabel}
+                                                </div>
+                                                <div className="text-[10px] uppercase tracking-wide font-semibold text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                                                  {dateMeta} • {sessionCount} sessions
                                                 </div>
                                             </div>
-                                        </div>
+                                            <div className="pr-2 text-slate-400 dark:text-slate-500">
+                                              <ChevronDown size={16} />
+                                            </div>
+                                        </button>
                                     ) : (
                                         <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">
                                             <Calendar size={14} />
@@ -525,6 +522,18 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
         onClose={() => setIsReportModalOpen(false)}
         event={selectedEvent}
         instance={selectedInstance}
+      />
+
+      <EventInstancePickerModal
+        isOpen={Boolean(instancePickerEventId)}
+        onClose={() => setInstancePickerEventId(null)}
+        eventName={visibleEvents.find((event) => event.id === instancePickerEventId)?.name}
+        instances={instancePickerEventId ? (allInstancesMap[instancePickerEventId] || []) : []}
+        selectedInstanceId={instancePickerEventId ? selectedInstanceIdMap[instancePickerEventId] : undefined}
+        onSelect={(instanceId) => {
+          if (!instancePickerEventId) return;
+          setSelectedInstanceIdMap(prev => ({ ...prev, [instancePickerEventId]: instanceId }));
+        }}
       />
 
       {/* QR Display Modal */}

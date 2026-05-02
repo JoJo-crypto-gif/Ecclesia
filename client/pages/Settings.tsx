@@ -208,11 +208,14 @@ const Settings: React.FC = () => {
   );
 
   return (
-    <div className="max-w-xl space-y-6 pb-10">
+    <div className="max-w-5xl space-y-6 pb-10">
       <div>
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Settings</h1>
         <p className="text-slate-500 mt-1 dark:text-slate-400">Manage your account settings.</p>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
         <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Profile Information</h2>
@@ -310,8 +313,10 @@ const Settings: React.FC = () => {
           </button>
         </form>
       </div>
+      </div>
 
       {userRole === 'admin' && (
+        <div className="space-y-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Automation Messages</h2>
           <p className="text-sm text-slate-500 mb-5 dark:text-slate-400">
@@ -418,7 +423,9 @@ const Settings: React.FC = () => {
             </button>
           </form>
         </div>
+        </div>
       )}
+      </div>
     </div>
   );
 };

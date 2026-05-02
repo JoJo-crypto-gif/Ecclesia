@@ -106,7 +106,7 @@ const EventsController = {
   // GET /api/events/:id/instances
   async listInstances(req, res, next) {
     try {
-      const { status, fromDate, toDate } = req.query;
+      const { status, fromDate, toDate, limit } = req.query;
       const user = req.session?.user;
       if (user?.role === 'zone_leader') {
         if (!user.zoneId) {
@@ -118,7 +118,13 @@ const EventsController = {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }
-      const instances = await EventsService.listInstances(req.params.id, { status, fromDate, toDate });
+      const parsedLimit = limit !== undefined ? Number.parseInt(limit, 10) : undefined;
+      const instances = await EventsService.listInstances(req.params.id, {
+        status,
+        fromDate,
+        toDate,
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+      });
       res.json({ success: true, data: instances });
     } catch (err) {
       next(err);

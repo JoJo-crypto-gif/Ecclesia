@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Member, Zone, DashboardStats, MemberStatus, ChurchEvent, EventInstance, AttendanceRecord, Message } from '../types';
+import { Member, Zone, DashboardStats, MemberStatus, ChurchEvent, EventInstance, AttendanceRecord, Message, ManualMessagePayload } from '../types';
 
 // Pagination Interface
 export interface Pagination {
@@ -29,6 +29,9 @@ interface DataContextType {
   setLimit: (limit: number) => void;
   setSearchTerm: (term: string) => void;
   setStatusFilter: (status: string) => void;
+  setZoneFilter: (zone: string) => void;
+  setBaptizedFilter: (baptized: string) => void;
+  setGenderFilter: (gender: string) => void;
   fetchMembers: () => Promise<void>;
   fetchAllMembers: () => Promise<Member[]>;
   refreshData: () => Promise<void>;
@@ -64,7 +67,7 @@ interface DataContextType {
   
   attendanceTrends: any[];
   
-  sendMessage: (message: Omit<Message, 'id' | 'sentAt' | 'status'>) => Promise<{success: boolean; message?: string}>;
+  sendMessage: (message: ManualMessagePayload) => Promise<{success: boolean; message?: string}>;
   fetchSettings: () => Promise<void>;
   fetchMessages: () => Promise<void>;
   updateSettings: (updates: Record<string, string>) => Promise<boolean>;
@@ -89,6 +92,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     activeMembers: 0,
     inactiveMembers: 0,
     visitorMembers: 0,
+    unbaptizedMembers: 0,
     recentGrowth: 5.2 
   });
   
@@ -97,6 +101,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [limit, setLimit] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [zoneFilter, setZoneFilter] = useState('All');
+  const [baptizedFilter, setBaptizedFilter] = useState('All');
+  const [genderFilter, setGenderFilter] = useState('All');
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
     limit: 10,
@@ -121,19 +128,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await apiFetch(`${API_BASE}/members/stats`);
-      if (!res.ok) throw new Error('Failed to fetch stats');
-      const data = await res.json();
-      if (data.success) {
-        setStats(prev => ({
-          ...prev,
-          totalMembers: data.data.total,
-          activeMembers: data.data.active,
-          inactiveMembers: data.data.inactive,
-          visitorMembers: data.data.visitor,
-          discoveryDistribution: data.data.discoveryDistribution,
-        }));
+      const [membersRes, attendanceRes] = await Promise.all([
+        apiFetch(`${API_BASE}/members/stats`),
+        apiFetch(`${API_BASE}/attendance/stats`)
+      ]);
+      
+      let newStats = {};
+      
+      if (membersRes.ok) {
+        const membersData = await membersRes.json();
+        if (membersData.success) {
+          newStats = {
+            ...newStats,
+            totalMembers: membersData.data.total,
+            activeMembers: membersData.data.active,
+            inactiveMembers: membersData.data.inactive,
+            visitorMembers: membersData.data.visitor,
+            unbaptizedMembers: membersData.data.unbaptized,
+            discoveryDistribution: membersData.data.discoveryDistribution,
+            totalMembersTrend: membersData.data.totalMembersTrend,
+            activeMembersTrend: membersData.data.activeMembersTrend,
+          };
+        }
       }
+
+      if (attendanceRes.ok) {
+        const attendanceData = await attendanceRes.json();
+        if (attendanceData.success) {
+           newStats = {
+             ...newStats,
+             avgAttendance: attendanceData.data.avg_attendance_percentage
+           };
+        }
+      }
+      
+      setStats(prev => ({ ...prev, ...newStats }));
     } catch (err) {
       console.error(err);
     }
@@ -150,6 +179,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (searchTerm) queryParams.append('search', searchTerm);
       if (statusFilter !== 'All') queryParams.append('status', statusFilter);
+      if (zoneFilter !== 'All') queryParams.append('zoneId', zoneFilter);
+      if (baptizedFilter !== 'All') queryParams.append('isBaptized', baptizedFilter === 'Baptized' ? 'true' : 'false');
+      if (genderFilter !== 'All') queryParams.append('gender', genderFilter);
 
       const res = await apiFetch(`${API_BASE}/members?${queryParams}`);
       if (!res.ok) throw new Error('Failed to fetch members');
@@ -157,26 +189,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.success) {
         setMembers(data.data.map((m: any) => ({
-          id: m.id,
-          firstName: m.firstName,
-          lastName: m.lastName,
-          email: m.email,
-          phone: m.phone,
-          address: m.address,
-          status: m.status,
-          zoneId: m.zoneId,
+          ...m,
           role: m.role || 'Member',
-          joinDate: m.joinDate,
-          avatarUrl: m.avatarUrl,
-          notes: m.notes,
-          dob: m.dob,
-          gender: m.gender,
-          occupation: m.occupation,
-          emergencyContact: m.emergencyContact,
-          emergencyPhone: m.emergencyPhone,
-          discoverySource: m.discoverySource,
-          maritalStatus: m.maritalStatus,
-          marriageDate: m.marriageDate
         })));
         
         if (data.pagination) {
@@ -188,7 +202,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  }, [page, limit, searchTerm, statusFilter]);
+  }, [page, limit, searchTerm, statusFilter, zoneFilter, baptizedFilter, genderFilter]);
 
   const fetchAllMembers = useCallback(async (): Promise<Member[]> => {
     try {
@@ -198,26 +212,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await res.json();
       if (data.success) {
          return data.data.map((m: any) => ({
-          id: m.id,
-          firstName: m.firstName,
-          lastName: m.lastName,
-          email: m.email,
-          phone: m.phone,
-          address: m.address,
-          status: m.status,
-          zoneId: m.zoneId,
+          ...m,
           role: m.role || 'Member',
-          joinDate: m.joinDate,
-          avatarUrl: m.avatarUrl,
-          notes: m.notes,
-          dob: m.dob,
-          gender: m.gender,
-          occupation: m.occupation,
-          emergencyContact: m.emergencyContact,
-          emergencyPhone: m.emergencyPhone,
-          discoverySource: m.discoverySource,
-          maritalStatus: m.maritalStatus,
-          marriageDate: m.marriageDate
         }));
       }
       return [];
@@ -662,7 +658,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const sendMessage = async (message: Omit<Message, 'id' | 'sentAt' | 'status'>) => {
+  const sendMessage = async (message: ManualMessagePayload) => {
     try {
       const res = await apiFetch(`${API_BASE}/messaging/send`, {
         method: 'POST',
@@ -670,8 +666,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({
           message: message.content,
           channel: message.channel,
-          recipientType: message.recipientType,
-          recipientTarget: message.recipientTarget
+          audienceType: message.audienceType,
+          filters: message.filters,
+          memberId: message.memberId,
+          memberIds: message.memberIds,
+          recipientLabel: message.recipientLabel
         })
       });
       const data = await res.json();
@@ -681,7 +680,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const newMessage: Message = {
-        ...message,
+        content: message.content,
+        channel: message.channel,
+        recipientType: message.audienceType,
+        recipientTarget: message.audienceType === 'individual'
+          ? JSON.stringify(message.memberIds || (message.memberId ? [message.memberId] : []))
+          : JSON.stringify(message.filters || {}),
+        recipientLabel: message.recipientLabel,
         id: Date.now().toString(),
         sentAt: new Date().toISOString(),
         status: 'sent',
@@ -712,7 +717,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider value={{
       members, zones, stats, events, instances, attendanceRecords, messages, attendanceTrends, settings,
       loading, error,
-      pagination, setPage, setLimit, setSearchTerm, setStatusFilter, fetchMembers,
+      pagination, setPage, setLimit, setSearchTerm, setStatusFilter, setZoneFilter, setBaptizedFilter, setGenderFilter, fetchMembers,
       addMember, updateMember, deleteMember, bulkUpdateMembers, bulkDeleteMembers,
       addZone, updateZone, deleteZone,
       fetchEvents, addEvent, updateEvent, deleteEvent,

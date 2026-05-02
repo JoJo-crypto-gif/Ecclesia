@@ -101,7 +101,7 @@ const EventsModel = {
   },
 
   // ─── List instances for a specific event ───────────────
-  async findInstances(eventId, { status, limit = 50, fromDate, toDate } = {}) {
+  async findInstances(eventId, { status, limit, fromDate, toDate } = {}) {
     const params = [eventId];
     const conditions = ['ei.event_id = $1'];
 
@@ -118,7 +118,7 @@ const EventsModel = {
       conditions.push(`ei.date <= $${params.length}`);
     }
 
-    params.push(limit);
+    const limitClause = Number.isFinite(limit) ? `LIMIT $${params.push(limit)}` : '';
     const result = await query(
       `SELECT ei.*, e.name as event_name, e.type as event_type, e.start_time, e.is_recurring, e.zone_id,
               (SELECT COUNT(*) FROM attendance a WHERE a.instance_id = ei.id) as attendance_count,
@@ -127,7 +127,7 @@ const EventsModel = {
        JOIN events e ON e.id = ei.event_id
        WHERE ${conditions.join(' AND ')}
        ORDER BY ei.date DESC
-       LIMIT $${params.length}`,
+       ${limitClause}`,
       params
     );
     return result.rows;

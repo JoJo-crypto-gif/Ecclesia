@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useData } from '../context/DataContext';
-import { User } from '../types';
+import { User, Member, ManualMessagePayload } from '../types';
 import { 
   MessageSquare, Mail, Smartphone, Users, Send, 
   Bold, Italic, Underline, List, Link as LinkIcon, CheckCircle, Clock, 
   Image as ImageIcon, Table as TableIcon, AlignLeft, AlignCenter, AlignRight, 
   Type, Palette, Highlighter, Strikethrough, Heading, Eraser, LayoutList,
-  ChevronDown, Upload, Scaling, RefreshCw, Save, ChevronLeft, ChevronRight
+  ChevronDown, Upload, Scaling, RefreshCw, Save, ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 
 interface MessagingProps {
@@ -24,10 +24,23 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
 
   // Compose State
   const [channel, setChannel] = useState<'email' | 'sms'>('email');
-  const [recipientType, setRecipientType] = useState<'all' | 'zone' | 'gender' | 'individual'>('all');
-  const [recipientTarget, setRecipientTarget] = useState<string>('');
+  const [audienceType, setAudienceType] = useState<'filter' | 'individual'>('filter');
+  const [filters, setFilters] = useState({
+    zoneId: 'all',
+    gender: 'all',
+    isBaptized: 'all'
+  });
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<Member[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState(''); // Stores HTML
+  
+  // Cache all members for client-side filtering and autocomplete
+  const [cachedMembers, setCachedMembers] = useState<Member[]>([]);
+  useEffect(() => {
+    fetchAllMembers().then(setCachedMembers);
+  }, [fetchAllMembers]);
   
   // Templates State
   const [birthdayTemplate, setBirthdayTemplate] = useState('');
@@ -57,8 +70,6 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Computed Recipient count for display only.
-  // NOTE: `members` is paginated (current page only).
-  // For `all` we use stats.totalMembers; for others we compute from the full list lazily.
   const [allMemberCount, setAllMemberCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -68,39 +79,43 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
   }, [isZoneLeader, activeTab]);
 
   useEffect(() => {
-    if (isZoneLeader && recipientType === 'zone') {
-      setRecipientType('all');
-      setRecipientTarget('');
-    }
-  }, [isZoneLeader, recipientType]);
-
-  useEffect(() => {
-    if (recipientType === 'all' || recipientType === 'zone' || recipientType === 'gender') {
-      fetchAllMembers().then(all => {
-        if (recipientType === 'all') {
-          setAllMemberCount(all.length);
-        } else if (recipientType === 'zone') {
-          setAllMemberCount(all.filter(m => m.zoneId === recipientTarget).length);
-        } else if (recipientType === 'gender') {
-          setAllMemberCount(all.filter(m => m.gender === recipientTarget).length);
-        }
-      });
-    } else if (recipientType === 'individual') {
-      setAllMemberCount(recipientTarget ? 1 : 0);
+    if (audienceType === 'filter') {
+      let filtered = cachedMembers;
+      if (isZoneLeader && user?.zoneId) {
+        filtered = filtered.filter(m => m.zoneId === user.zoneId);
+      } else if (filters.zoneId !== 'all') {
+        filtered = filtered.filter(m => m.zoneId === filters.zoneId);
+      }
+      
+      if (filters.gender !== 'all') {
+        filtered = filtered.filter(m => m.gender === filters.gender);
+      }
+      
+      if (filters.isBaptized !== 'all') {
+        const isBap = filters.isBaptized === 'true';
+        filtered = filtered.filter(m => m.isBaptized === isBap);
+      }
+      setAllMemberCount(filtered.length);
     } else {
-      setAllMemberCount(null);
+      setAllMemberCount(selectedMembers.length);
     }
-  }, [recipientType, recipientTarget]);
+  }, [audienceType, filters, selectedMembers, cachedMembers, isZoneLeader, user?.zoneId]);
 
-  // Used only for the individual member name lookup in the UI
-  const targetRecipients = useMemo(() => {
-    if (recipientType === 'individual') {
-      return members.filter(m => m.id === recipientTarget);
-    }
-    return [];
-  }, [recipientType, recipientTarget, members]);
+  const searchResults = useMemo(() => {
+    if (!memberSearchQuery) return [];
+    const query = memberSearchQuery.toLowerCase();
+    let searchable = cachedMembers;
+    if (isZoneLeader && user?.zoneId) searchable = searchable.filter(m => m.zoneId === user.zoneId);
+    searchable = searchable.filter(m => !selectedMembers.some(selected => selected.id === m.id));
+    
+    return searchable.filter(m => 
+      `${m.firstName} ${m.lastName}`.toLowerCase().includes(query) ||
+      (m.email && m.email.toLowerCase().includes(query)) ||
+      (m.phone && m.phone.includes(query))
+    ).slice(0, 5);
+  }, [memberSearchQuery, cachedMembers, isZoneLeader, selectedMembers, user?.zoneId]);
 
-  const displayCount = allMemberCount ?? targetRecipients.length;
+  const displayCount = allMemberCount ?? 0;
   const totalHistoryPages = Math.max(1, Math.ceil(messages.length / HISTORY_PAGE_SIZE));
 
   const paginatedMessages = useMemo(() => {
@@ -115,16 +130,40 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
   }, [historyPage, totalHistoryPages]);
 
   const recipientLabel = useMemo(() => {
-    switch (recipientType) {
-      case 'all': return isZoneLeader ? 'My Zone Members' : 'All Members';
-      case 'zone': return isZoneLeader ? 'My Zone' : (zones.find(z => z.id === recipientTarget)?.name || 'Unknown Zone');
-      case 'gender': return isZoneLeader ? `${recipientTarget} Members (My Zone)` : `${recipientTarget} Members`;
-      case 'individual': 
-        const m = members.find(m => m.id === recipientTarget);
-        return m ? `${m.firstName} ${m.lastName}` : 'Unknown Member';
-      default: return 'Recipients';
+    if (audienceType === 'individual') {
+       if (selectedMembers.length === 0) return 'No members selected';
+       const names = selectedMembers.slice(0, 2).map(member => `${member.firstName} ${member.lastName}`);
+       return selectedMembers.length > 2
+         ? `${names.join(', ')} + ${selectedMembers.length - 2} more`
+         : names.join(', ');
     }
-  }, [recipientType, recipientTarget, zones, members, isZoneLeader]);
+    
+    // Filter mode labels
+    const labels = [];
+    if (isZoneLeader) {
+       labels.push('My Zone');
+    } else if (filters.zoneId !== 'all') {
+       labels.push(zones.find(z => z.id === filters.zoneId)?.name || 'Zone');
+    }
+    
+    if (filters.gender !== 'all') labels.push(`${filters.gender}s`);
+    if (filters.isBaptized !== 'all') labels.push(filters.isBaptized === 'true' ? 'Baptized' : 'Unbaptized');
+    
+    if (labels.length === 0) return isZoneLeader ? 'My Zone Members' : 'All Members';
+    return labels.join(', ');
+  }, [audienceType, filters, selectedMembers, zones, isZoneLeader]);
+
+  const addSelectedMember = (member: Member) => {
+    setSelectedMembers(prev => (
+      prev.some(selected => selected.id === member.id) ? prev : [...prev, member]
+    ));
+    setMemberSearchQuery('');
+    setIsDropdownOpen(false);
+  };
+
+  const removeSelectedMember = (memberId: string) => {
+    setSelectedMembers(prev => prev.filter(member => member.id !== memberId));
+  };
 
   // --- RICH TEXT EDITOR LOGIC ---
 
@@ -195,20 +234,27 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
   const handleSend = async () => {
     if (!content || content === '<br>') return;
     if (channel === 'email' && !subject) return;
-    if (recipientType !== 'all' && !recipientTarget) return;
+    
+    if (audienceType === 'individual' && selectedMembers.length === 0) return;
+    if (audienceType === 'filter' && displayCount === 0) return;
 
     setIsSending(true);
     setSendError(null);
 
-    // Strip HTML for SMS plain text if needed, let frontend pass preview text
+    // Strip HTML for SMS plain text if needed
     const plainText = editorRef.current?.innerText || content.replace(/<[^>]+>/g, '');
 
-    const messagePayload = {
+    const messagePayload: ManualMessagePayload = {
       subject: channel === 'email' ? subject : undefined,
       content: channel === 'sms' ? plainText : content,
       channel,
-      recipientType,
-      recipientTarget,
+      audienceType,
+      filters: audienceType === 'filter' ? {
+        zoneId: filters.zoneId === 'all' ? undefined : filters.zoneId,
+        gender: filters.gender === 'all' ? undefined : filters.gender,
+        isBaptized: filters.isBaptized === 'all' ? undefined : (filters.isBaptized === 'true' ? 'true' : 'false')
+      } : undefined,
+      memberIds: audienceType === 'individual' ? selectedMembers.map(member => member.id) : undefined,
       recipientLabel,
       recipientCount: displayCount
     };
@@ -222,6 +268,8 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
       // Reset form
       setSubject('');
       setContent('');
+      setSelectedMembers([]);
+      setMemberSearchQuery('');
       if (editorRef.current) editorRef.current.innerHTML = '';
       setTimeout(() => setShowSuccess(false), 3000);
     } else {
@@ -249,6 +297,29 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
   const stripHtmlLength = (html: string) => {
      return html.replace(/<[^>]+>/g, '').length;
   };
+
+  const hasActiveFilters = (!isZoneLeader && filters.zoneId !== 'all')
+    || filters.gender !== 'all'
+    || filters.isBaptized !== 'all';
+
+  const resetAudienceFilters = () => {
+    setFilters({
+      zoneId: 'all',
+      gender: 'all',
+      isBaptized: 'all',
+    });
+  };
+
+  const audienceToggleClass = (isActive: boolean) => (
+    `inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition-all ${
+      isActive
+        ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-indigo-100 dark:bg-slate-700 dark:text-white dark:ring-slate-600'
+        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+    }`
+  );
+
+  const filterSelectClass = 'h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-sm font-medium text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
+  const textInputClass = 'h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white';
 
   return (
     <div className="space-y-8 animate-enter pb-10">
@@ -298,81 +369,218 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                        </div>
                    )}
 
-                   <div className="flex flex-col md:flex-row gap-6 mb-8">
-                       {/* Channel Selector */}
-                       <div className="w-full md:flex-1">
-                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 dark:text-slate-400">Channel</label>
-                           <div className="flex bg-slate-100 p-1 rounded-xl dark:bg-slate-800">
-                               <button 
-                                  onClick={() => setChannel('email')}
-                                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${channel === 'email' ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                               >
-                                   <Mail size={16} /> Email
-                               </button>
-                               <button 
-                                  onClick={() => setChannel('sms')}
-                                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${channel === 'sms' ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                               >
-                                   <Smartphone size={16} /> SMS
-                               </button>
+                   <div className="mb-8 rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:to-slate-950">
+                       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(240px,0.95fr)_minmax(0,1.45fr)]">
+                           <div className="space-y-3">
+                               <div className="flex items-center justify-between gap-3">
+                                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">Channel</label>
+                                   <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                                       {channel === 'email' ? 'Rich formatting enabled' : 'Plain text delivery'}
+                                   </span>
+                               </div>
+                               <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">
+                                   <button 
+                                      onClick={() => setChannel('email')}
+                                      className={audienceToggleClass(channel === 'email')}
+                                   >
+                                       <Mail size={16} /> Email
+                                   </button>
+                                   <button 
+                                      onClick={() => setChannel('sms')}
+                                      className={audienceToggleClass(channel === 'sms')}
+                                   >
+                                       <Smartphone size={16} /> SMS
+                                   </button>
+                               </div>
+                               <div className="rounded-2xl border border-slate-200 bg-white p-3.5 dark:border-slate-700 dark:bg-slate-900">
+                                   <div className="flex items-start justify-between gap-3">
+                                       <div>
+                                           <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Audience Preview</p>
+                                           <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{recipientLabel}</p>
+                                           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Recipient count updates as you change the targeting rules.</p>
+                                       </div>
+                                       <div className="inline-flex h-11 min-w-[68px] items-center justify-center gap-2 rounded-xl bg-indigo-50 px-3 text-sm font-bold text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
+                                           <Users size={15} />
+                                           {displayCount}
+                                       </div>
+                                   </div>
+                               </div>
                            </div>
-                       </div>
 
-                       {/* Recipient Selector */}
-                       <div className="w-full md:flex-[2]">
-                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 dark:text-slate-400">Send To</label>
-                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <select 
-                                  value={recipientType}
-                                  onChange={(e) => {
-                                      setRecipientType(e.target.value as any);
-                                      setRecipientTarget(''); // Reset target on type change
-                                  }}
-                                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                              >
-                                  <option value="all">All Members</option>
-                                  {!isZoneLeader && <option value="zone">Specific Zone</option>}
-                                  <option value="gender">By Gender</option>
-                                  <option value="individual">Individual Member</option>
-                              </select>
+                           <div className="space-y-3">
+                               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                   <div>
+                                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">Send To</label>
+                                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                           {audienceType === 'filter'
+                                               ? 'Build a recipient audience with consistent filters.'
+                                               : 'Search and add one or more members directly.'}
+                                       </p>
+                                   </div>
+                                   {audienceType === 'filter' && hasActiveFilters && (
+                                       <button
+                                           type="button"
+                                           onClick={resetAudienceFilters}
+                                           className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                                       >
+                                           <RefreshCw size={14} />
+                                           Reset Filters
+                                       </button>
+                                   )}
+                               </div>
 
-                              {recipientType !== 'all' && (
-                                  <div className="animate-enter">
-                                      {recipientType === 'zone' && (
-                                          <select 
-                                              value={recipientTarget}
-                                              onChange={(e) => setRecipientTarget(e.target.value)}
-                                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                          >
-                                              <option value="">Select Zone...</option>
-                                              {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-                                          </select>
-                                      )}
+                               <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1 dark:bg-slate-800">
+                                   <button 
+                                      type="button"
+                                      onClick={() => setAudienceType('filter')}
+                                      className={audienceToggleClass(audienceType === 'filter')}
+                                   >
+                                       <Users size={16} />
+                                       Target Audience
+                                   </button>
+                                   <button 
+                                      type="button"
+                                      onClick={() => setAudienceType('individual')}
+                                      className={audienceToggleClass(audienceType === 'individual')}
+                                   >
+                                       <MessageSquare size={16} />
+                                       Specific Individual
+                                   </button>
+                               </div>
 
-                                      {recipientType === 'gender' && (
-                                          <select 
-                                              value={recipientTarget}
-                                              onChange={(e) => setRecipientTarget(e.target.value)}
-                                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                          >
-                                              <option value="">Select Gender...</option>
-                                              <option value="Male">Men</option>
-                                              <option value="Female">Women</option>
-                                          </select>
-                                      )}
+                               {audienceType === 'filter' ? (
+                                   <div className="space-y-3 animate-enter">
+                                       {isZoneLeader && (
+                                           <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs font-medium text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300">
+                                               Audience is locked to your zone. You can still narrow it further by gender or baptism status.
+                                           </div>
+                                       )}
+                                       <div className={`grid grid-cols-1 gap-3 ${isZoneLeader ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+                                          {!isZoneLeader && (
+                                            <div className="relative">
+                                                <select 
+                                                    value={filters.zoneId}
+                                                    onChange={(e) => setFilters(prev => ({ ...prev, zoneId: e.target.value }))}
+                                                    className={filterSelectClass}
+                                                >
+                                                    <option value="all">All Zones</option>
+                                                    {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                                                </select>
+                                                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            </div>
+                                          )}
 
-                                      {recipientType === 'individual' && (
-                                          <select 
-                                              value={recipientTarget}
-                                              onChange={(e) => setRecipientTarget(e.target.value)}
-                                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                          >
-                                              <option value="">Select Member...</option>
-                                              {members.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
-                                          </select>
-                                      )}
-                                  </div>
-                              )}
+                                          <div className="relative">
+                                              <select 
+                                                  value={filters.gender}
+                                                  onChange={(e) => setFilters(prev => ({ ...prev, gender: e.target.value }))}
+                                                  className={filterSelectClass}
+                                              >
+                                                  <option value="all">All Genders</option>
+                                                  <option value="Male">Men</option>
+                                                  <option value="Female">Women</option>
+                                              </select>
+                                              <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                          </div>
+
+                                          <div className="relative">
+                                              <select 
+                                                  value={filters.isBaptized}
+                                                  onChange={(e) => setFilters(prev => ({ ...prev, isBaptized: e.target.value }))}
+                                                  className={filterSelectClass}
+                                              >
+                                                  <option value="all">All Baptism Status</option>
+                                                  <option value="true">Baptized</option>
+                                                  <option value="false">Unbaptized</option>
+                                              </select>
+                                              <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                          </div>
+                                       </div>
+                                   </div>
+                               ) : (
+                                   <div className="relative animate-enter">
+                                       <div className="flex gap-2">
+                                           <div className="relative flex-1">
+                                               <input 
+                                                   type="text"
+                                                   value={memberSearchQuery}
+                                                   onChange={(e) => {
+                                                       setMemberSearchQuery(e.target.value);
+                                                       setIsDropdownOpen(true);
+                                                   }}
+                                                   onFocus={() => setIsDropdownOpen(true)}
+                                                   placeholder="Search member name, email or phone, then add..."
+                                                   className={`${textInputClass} ${selectedMembers.length > 0 ? 'pr-28' : ''}`}
+                                               />
+                                               {selectedMembers.length > 0 && (
+                                                   <div className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                                       <CheckCircle size={12} /> {selectedMembers.length} selected
+                                                   </div>
+                                               )}
+                                           </div>
+                                           {selectedMembers.length > 0 && (
+                                               <button 
+                                                   type="button"
+                                                   onClick={() => {
+                                                       setSelectedMembers([]);
+                                                       setMemberSearchQuery('');
+                                                       setIsDropdownOpen(false);
+                                                   }}
+                                                   className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+                                               >
+                                                   <Eraser size={18} />
+                                               </button>
+                                           )}
+                                       </div>
+
+                                       {selectedMembers.length > 0 && (
+                                           <div className="mt-3 flex flex-wrap gap-2">
+                                               {selectedMembers.map(member => (
+                                                   <div
+                                                       key={member.id}
+                                                       className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300"
+                                                   >
+                                                       <span className="truncate max-w-[180px]">{member.firstName} {member.lastName}</span>
+                                                       <button
+                                                           type="button"
+                                                           onClick={() => removeSelectedMember(member.id)}
+                                                           className="rounded-full text-indigo-500 transition-colors hover:text-indigo-700 dark:text-indigo-300 dark:hover:text-white"
+                                                           aria-label={`Remove ${member.firstName} ${member.lastName}`}
+                                                       >
+                                                           <X size={12} />
+                                                       </button>
+                                                   </div>
+                                               ))}
+                                           </div>
+                                       )}
+
+                                       {isDropdownOpen && searchResults.length > 0 && (
+                                           <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
+                                               {searchResults.map(m => (
+                                                   <button
+                                                       key={m.id}
+                                                       type="button"
+                                                       onClick={() => addSelectedMember(m)}
+                                                       className="flex w-full items-center gap-3 border-b border-slate-50 px-4 py-3 text-left hover:bg-slate-50 last:border-0 dark:border-slate-700 dark:hover:bg-slate-700"
+                                                   >
+                                                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+                                                           {m.firstName[0]}{m.lastName[0]}
+                                                       </div>
+                                                       <div className="min-w-0">
+                                                           <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{m.firstName} {m.lastName}</p>
+                                                           <p className="truncate text-xs text-slate-500 dark:text-slate-400">{m.email || m.phone || 'No contact info'}</p>
+                                                       </div>
+                                                   </button>
+                                               ))}
+                                           </div>
+                                       )}
+                                       {isDropdownOpen && memberSearchQuery && searchResults.length === 0 && (
+                                           <div className="absolute z-50 mt-2 w-full rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-500 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+                                               No members found matching "{memberSearchQuery}"
+                                           </div>
+                                       )}
+                                   </div>
+                               )}
                            </div>
                        </div>
                    </div>
@@ -386,7 +594,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                   value={subject}
                                   onChange={(e) => setSubject(e.target.value)}
                                   placeholder="Email Subject Line"
-                                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-bold text-slate-800 placeholder-slate-400 dark:bg-slate-950 dark:border-slate-700 dark:text-white"
+                                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 font-bold text-slate-800 placeholder-slate-400 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                                />
                            </div>
                        )}
@@ -464,7 +672,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                        
                        <button 
                           onClick={handleSend}
-                          disabled={isSending || (!content && !subject) || (recipientType !== 'all' && !recipientTarget) || displayCount === 0}
+                          disabled={isSending || (!content && !subject) || (audienceType === 'individual' && selectedMembers.length === 0) || displayCount === 0}
                           className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-600"
                        >
                           {isSending ? (
@@ -581,10 +789,10 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                           className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 focus:outline-none transition-all text-sm text-slate-800 placeholder-slate-300 dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder-slate-500 resize-none leading-relaxed"
                         />
                         <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-slate-400">Max 160 chars per SMS part</span>
-                          <span className={`text-xs font-semibold tabular-nums ${anniversaryTemplate.length > 160 ? 'text-amber-500' : anniversaryTemplate.length > 130 ? 'text-yellow-500' : 'text-slate-400'}`}>
-                            {anniversaryTemplate.length}/160
-                          </span>
+                           <span className="text-xs text-slate-400">Max 160 chars per SMS part</span>
+                           <span className={`text-xs font-semibold tabular-nums ${anniversaryTemplate.length > 160 ? 'text-amber-500' : anniversaryTemplate.length > 130 ? 'text-yellow-500' : 'text-slate-400'}`}>
+                             {anniversaryTemplate.length}/160
+                           </span>
                         </div>
                       </div>
                       <div className="p-4 bg-slate-50/60 dark:bg-slate-800/30">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Map, Activity, TrendingUp, Calendar, ArrowRight, Shield, UserCheck, Gift } from 'lucide-react';
+import { Users, Map, Activity, TrendingUp, Calendar, ArrowRight, Shield, UserCheck } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area 
@@ -86,35 +86,6 @@ const Dashboard: React.FC = () => {
     count: members.filter(m => m.zoneId === zone.id).length
   }));
 
-  // Upcoming Birthdays Calculation
-  const upcomingBirthdays = React.useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return members
-      .filter(m => m.dob && m.status === 'Active')
-      .map(m => {
-        const dob = new Date(m.dob!);
-        let nextBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-        
-        // If birthday already passed this year, it's next year
-        if (nextBirthday.getTime() < today.getTime()) {
-          nextBirthday = new Date(today.getFullYear() + 1, dob.getMonth(), dob.getDate());
-        }
-        
-        const diffTime = nextBirthday.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        return { 
-          ...m, 
-          nextBirthday, 
-          diffDays,
-          ageTurning: nextBirthday.getFullYear() - dob.getFullYear()
-        };
-      })
-      .sort((a, b) => a.diffDays - b.diffDays)
-      .slice(0, 5); // top 5
-  }, [members]);
 
   const discoveryData = stats.discoveryDistribution || [];
 
@@ -155,8 +126,8 @@ const Dashboard: React.FC = () => {
           title="Total Members" 
           value={stats.totalMembers} 
           icon={Users} 
-          trend="12% vs last mo"
-          trendUp={true}
+          trend={stats.totalMembersTrend !== undefined ? `${Math.abs(stats.totalMembersTrend)}% vs last mo` : undefined}
+          trendUp={stats.totalMembersTrend !== undefined ? stats.totalMembersTrend >= 0 : undefined}
           color="indigo"
           delay="delay-0"
         />
@@ -171,14 +142,14 @@ const Dashboard: React.FC = () => {
           title="Active Members" 
           value={stats.activeMembers} 
           icon={Activity} 
-          trend="5% this week"
-          trendUp={true}
+          trend={stats.activeMembersTrend !== undefined ? `${Math.abs(stats.activeMembersTrend)}% vs last mo` : undefined}
+          trendUp={stats.activeMembersTrend !== undefined ? stats.activeMembersTrend >= 0 : undefined}
           color="green"
           delay="delay-200"
         />
         <StatCard 
           title="Avg. Attendance" 
-          value="85%" 
+          value={stats.avgAttendance !== undefined ? `${stats.avgAttendance}%` : "0%"} 
           icon={TrendingUp} 
           color="orange"
           delay="delay-300"
@@ -598,66 +569,6 @@ const Dashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Upcoming Birthdays Row */}
-      {upcomingBirthdays.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 animate-enter delay-600 dark:bg-slate-900 dark:border-slate-800 group md:hover-3d-card md:preserve-3d">
-            <div className="flex items-center justify-between mb-6 transform transition-transform duration-300 md:group-hover:translate-z-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-gradient-to-br from-rose-400 to-pink-600 text-white shadow-lg shadow-pink-500/20">
-                  <Gift size={18} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-white">Upcoming Birthdays</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Members celebrating soon</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-4 transform transition-transform duration-300 md:group-hover:translate-z-2">
-              {upcomingBirthdays.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 hover:border-pink-200 dark:hover:border-pink-500/30 transition-colors cursor-pointer" onClick={() => navigate('/members')}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden shrink-0 shadow-inner">
-                      {member.avatarUrl ? (
-                        <img src={member.avatarUrl} alt={member.firstName} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold text-sm bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800">
-                          {member.firstName.charAt(0)}{member.lastName.charAt(0)}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                        {member.firstName} {member.lastName}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                          member.diffDays === 0 
-                            ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white animate-pulse shadow-sm'
-                            : member.diffDays <= 7
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
-                            : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                        }`}>
-                          {member.diffDays === 0 ? 'TODAY!' : member.diffDays === 1 ? 'Tomorrow' : `In ${member.diffDays} days`}
-                        </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                          • Turning {member.ageTurning}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      {member.nextBirthday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       <ReportGenerationModal 
         isOpen={isReportModalOpen} 

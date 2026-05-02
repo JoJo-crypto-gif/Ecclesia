@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, Printer, User, Megaphone, Briefcase, MessageSquare, BarChart3, UserCircle, Loader2 } from 'lucide-react';
+import { Mail, Phone, Printer, User, Megaphone, Briefcase, MessageSquare, BarChart3, UserCircle, Loader2, AlertCircle } from 'lucide-react';
 import {
   RadialBarChart, RadialBar, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -95,18 +95,8 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
     </div>
 
     <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
-      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Additional Information</h3>
-      <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Assigned Zone</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">
-            {zones.find(z => z.id === member.zoneId)?.name || 'Unassigned'}
-          </span>
-        </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date Joined</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">{member.joinDate}</span>
-        </div>
+      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Personal Information</h3>
+      <div className="grid grid-cols-2 gap-y-5 gap-x-4">
         <div>
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Gender</span>
           <span className="text-slate-800 font-bold dark:text-slate-200">{member.gender || 'Not specified'}</span>
@@ -120,7 +110,7 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
           </span>
         </div>
         <div className="col-span-2">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1 font-sans">Full Address</span>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Full Address</span>
           <span className="text-slate-800 font-medium dark:text-slate-200">{member.address || 'Not specified'}</span>
         </div>
         <div>
@@ -137,26 +127,197 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
             {member.discoverySource || 'Not specified'}
           </div>
         </div>
-        {member.emergencyContact && (
-          <div className="col-span-2 pt-4 border-t border-slate-200 border-dashed mt-2 dark:border-slate-700">
-            <span className="text-xs font-semibold text-rose-500 uppercase tracking-wider block mb-1">Emergency Contact</span>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-800 font-bold dark:text-slate-200">{member.emergencyContact}</span>
-              <span className="text-slate-600 dark:text-slate-400 font-mono">{member.emergencyPhone}</span>
-            </div>
-          </div>
-        )}
-        {member.notes && (
-          <div className="col-span-2 pt-4 border-t border-slate-200 border-dashed mt-2 dark:border-slate-700">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Internal Notes</span>
-            <div className="bg-slate-100/50 p-4 rounded-xl text-slate-600 text-sm italic dark:bg-slate-800/80 dark:text-slate-400 flex gap-3">
-              <MessageSquare size={16} className="text-slate-400 shrink-0 mt-0.5" />
-              "{member.notes}"
+      </div>
+    </div>
+
+    {/* Church Involvement */}
+    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
+      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Church Involvement</h3>
+      <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+        <div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Assigned Zone</span>
+          <span className="text-slate-800 font-bold dark:text-slate-200">
+            {zones.find(z => z.id === member.zoneId)?.name || 'Unassigned'}
+          </span>
+        </div>
+        <div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date Joined</span>
+          <span className="text-slate-800 font-bold dark:text-slate-200">{member.joinDate || 'Not specified'}</span>
+        </div>
+        <div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Role / Ministry</span>
+          <span className="text-slate-800 font-bold dark:text-slate-200">{member.role || 'Member'}</span>
+        </div>
+        <div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Baptism Status</span>
+          <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider inline-block ${
+            member.isBaptized
+              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400'
+              : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+          }`}>
+            {member.isBaptized ? 'Baptized' : 'Not Baptized'}
+          </span>
+        </div>
+
+        {member.isBaptized && (
+          <div className="col-span-2">
+            <div className="bg-slate-100/50 p-4 rounded-xl dark:bg-slate-800/80 grid grid-cols-2 gap-y-4 gap-x-6">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Date</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.baptismDate || 'Not specified'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Method</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.baptismMethod || 'Not specified'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Minister</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.baptizedBy || 'Not specified'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Location</span>
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{member.baptismChurch || 'Not specified'}</span>
+              </div>
             </div>
           </div>
         )}
       </div>
     </div>
+
+    {/* Marital & Spouse Details */}
+    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
+      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Marital Status</h3>
+      <div className="flex items-center gap-3 mb-4">
+        <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
+          member.maritalStatus === 'Married' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400' :
+          member.maritalStatus === 'Single' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
+          member.maritalStatus ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' :
+          'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+        }`}>
+          {member.maritalStatus || 'Not specified'}
+        </span>
+        {member.marriageDate && (
+          <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+            since {member.marriageDate}
+          </span>
+        )}
+      </div>
+
+      {member.maritalStatus === 'Married' && (
+        <div className="bg-slate-100/50 p-4 rounded-xl dark:bg-slate-800/80">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Spouse Name</span>
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.spouseName || 'Not specified'}</span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Spouse Contact</span>
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono">{member.spousePhone || 'Not specified'}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Family Details — Parents & Children */}
+    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
+      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Family Details</h3>
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="bg-slate-100/50 p-3 rounded-xl dark:bg-slate-800/80">
+          <span className="text-xs text-slate-500 block mb-0.5 dark:text-slate-400 flex items-center gap-1.5">👩 Mother</span>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-slate-900 dark:text-white">{member.motherName || 'Not specified'}</span>
+            {member.motherStatus && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                  member.motherStatus === 'Alive' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
+                  member.motherStatus === 'Deceased' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' :
+                  'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+              }`}>
+                  {member.motherStatus}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-slate-100/50 p-3 rounded-xl dark:bg-slate-800/80">
+          <span className="text-xs text-slate-500 block mb-0.5 dark:text-slate-400 flex items-center gap-1.5">👨 Father</span>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-slate-900 dark:text-white">{member.fatherName || 'Not specified'}</span>
+            {member.fatherStatus && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                  member.fatherStatus === 'Alive' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
+                  member.fatherStatus === 'Deceased' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' :
+                  'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+              }`}>
+                  {member.fatherStatus}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="pt-4 border-t border-slate-200/60 dark:border-slate-700/60">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-3 flex items-center gap-2">
+          👶 Children
+          {member.children && member.children.length > 0 && (
+            <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full dark:bg-amber-500/20 dark:text-amber-400">
+              {member.children.length}
+            </span>
+          )}
+        </span>
+        {member.children && member.children.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3">
+            {member.children.map((child: { name: string; phone?: string }, idx: number) => (
+              <div key={idx} className="bg-slate-100/50 p-3 rounded-xl dark:bg-slate-800/80 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <span className="text-xs">👶</span>
+                </div>
+                <div className="min-w-0">
+                  <span className="text-sm font-bold text-slate-900 dark:text-white block truncate">{child.name}</span>
+                  {child.phone && (
+                    <span className="text-xs text-slate-500 font-mono dark:text-slate-400">{child.phone}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <span className="text-sm text-slate-400 dark:text-slate-500 italic">No children recorded</span>
+        )}
+      </div>
+    </div>
+
+    {/* Emergency Contact */}
+    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
+      <h3 className="text-sm font-bold text-rose-500 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:border-slate-700 flex items-center gap-2">
+        <AlertCircle size={14} /> Emergency Contact
+      </h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Contact Name</span>
+          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.emergencyContact || 'Not specified'}</span>
+        </div>
+        <div>
+          <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Contact Phone</span>
+          <span className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono">{member.emergencyPhone || 'Not specified'}</span>
+        </div>
+      </div>
+    </div>
+
+    {/* Notes */}
+    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
+      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Internal Notes</h3>
+      {member.notes ? (
+        <div className="bg-slate-100/50 p-4 rounded-xl text-slate-600 text-sm italic dark:bg-slate-800/80 dark:text-slate-400 flex gap-3">
+          <MessageSquare size={16} className="text-slate-400 shrink-0 mt-0.5" />
+          "{member.notes}"
+        </div>
+      ) : (
+        <span className="text-sm text-slate-400 dark:text-slate-500 italic">No notes</span>
+      )}
+    </div>
+
+
 
     <div className="flex justify-end pt-2">
       <button

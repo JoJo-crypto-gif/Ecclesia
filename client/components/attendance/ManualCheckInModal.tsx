@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import Modal from '../Modal';
 import { ChurchEvent, EventInstance, Member, AttendanceRecord } from '../../types';
+import { useData } from '../../context/DataContext';
 
 interface ManualCheckInModalProps {
   isOpen: boolean;
@@ -17,8 +18,10 @@ interface ManualCheckInModalProps {
 const ManualCheckInModal: React.FC<ManualCheckInModalProps> = ({ 
   isOpen, onClose, event, instance, members, onToggleAttendance 
 }) => {
+  const { fetchAllMembers } = useData();
   const [manualSearchTerm, setManualSearchTerm] = useState('');
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Fetch attendance for this instance when modal opens
@@ -37,6 +40,14 @@ const ManualCheckInModal: React.FC<ManualCheckInModalProps> = ({
     }
   }, [isOpen, instance]);
 
+  useEffect(() => {
+    if (isOpen) {
+      fetchAllMembers()
+        .then(setAllMembers)
+        .catch(console.error);
+    }
+  }, [isOpen, fetchAllMembers]);
+
   // Refresh after toggle
   const handleToggle = async (memberId: string, isPresent: boolean) => {
     await onToggleAttendance(memberId, isPresent);
@@ -53,11 +64,17 @@ const ManualCheckInModal: React.FC<ManualCheckInModalProps> = ({
   if (!event || !instance) return null;
 
   const presentMemberIds = new Set(attendanceRecords.map(r => r.memberId).filter(Boolean));
+  const availableMembers = (allMembers.length > 0 ? allMembers : members).filter(member => (
+    !event.zoneId || member.zoneId === event.zoneId
+  ));
   
-  let filteredMembers = members.filter(m => 
-    (m.firstName + ' ' + m.lastName).toLowerCase().includes(manualSearchTerm.toLowerCase()) ||
-    m.email.toLowerCase().includes(manualSearchTerm.toLowerCase())
-  );
+  let filteredMembers = availableMembers.filter(m => {
+    const fullName = `${m.firstName || ''} ${m.lastName || ''}`.toLowerCase();
+    const email = (m.email || '').toLowerCase();
+    const search = (manualSearchTerm || '').toLowerCase();
+    
+    return fullName.includes(search) || email.includes(search);
+  });
 
   const membersList = filteredMembers.map(m => ({
     member: m,

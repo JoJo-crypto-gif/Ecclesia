@@ -4,7 +4,7 @@ import { sendSms } from '../services/messagingService.js';
 
 export const sendManualMessage = async (req, res) => {
   try {
-    const { message, channel, recipientType, recipientTarget } = req.body;
+    const { message, channel, audienceType, filters, memberId, memberIds, recipientLabel: customRecipientLabel } = req.body;
     const sessionUser = req.session?.user;
     const isZoneLeader = sessionUser?.role === 'zone_leader';
     const zoneId = sessionUser?.zoneId;
@@ -21,63 +21,52 @@ export const sendManualMessage = async (req, res) => {
       return res.status(403).json({ success: false, error: { message: 'No zone assigned.' } });
     }
 
-    const normalizedRecipientType = recipientType || 'all';
-    const validRecipientTypes = new Set(['all', 'zone', 'gender', 'individual']);
-    if (!validRecipientTypes.has(normalizedRecipientType)) {
-      return res.status(400).json({ success: false, error: { message: 'Invalid recipientType.' } });
-    }
-
     let recipientMembers = [];
-    let recipientLabel = 'All Members';
-    let normalizedRecipientTarget = recipientTarget || null;
+    let recipientLabel = customRecipientLabel || 'Recipients';
+    let normalizedRecipientType = audienceType;
+    let normalizedRecipientTarget = null;
 
-    if (normalizedRecipientType === 'all') {
-      const { members } = await MembersModel.findAll({
-        zoneId: isZoneLeader ? zoneId : undefined,
-        limit: 10000,
-      });
-      recipientMembers = members;
-      recipientLabel = isZoneLeader ? 'My Zone Members' : 'All Members';
+    if (audienceType === 'filter') {
+      const queryFilters = { ...filters, limit: 10000 };
+      
+      // Enforce zone leader permissions
       if (isZoneLeader) {
-        normalizedRecipientTarget = zoneId;
+        if (filters.zoneId && filters.zoneId !== zoneId) {
+           return res.status(403).json({ success: false, error: { message: 'Zone leaders can only message their own zone.' } });
+        }
+        queryFilters.zoneId = zoneId;
       }
-    } else if (normalizedRecipientType === 'zone') {
-      if (!recipientTarget) {
-        return res.status(400).json({ success: false, error: { message: 'recipientTarget is required for zone recipients.' } });
-      }
-      if (isZoneLeader && recipientTarget !== zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'Zone leaders can only message their own zone.' } });
-      }
-      const targetZoneId = isZoneLeader ? zoneId : recipientTarget;
-      const { members } = await MembersModel.findAll({ zoneId: targetZoneId, limit: 10000 });
+      
+      const { members } = await MembersModel.findAll(queryFilters);
       recipientMembers = members;
-      recipientLabel = isZoneLeader ? 'My Zone' : 'Zone';
-      normalizedRecipientTarget = targetZoneId;
-    } else if (normalizedRecipientType === 'gender') {
-      const allowedGenders = new Set(['Male', 'Female', 'Other']);
-      if (!recipientTarget || !allowedGenders.has(recipientTarget)) {
-        return res.status(400).json({ success: false, error: { message: 'recipientTarget must be Male, Female, or Other for gender recipients.' } });
+      normalizedRecipientTarget = JSON.stringify(filters);
+    } else if (audienceType === 'individual') {
+      const requestedMemberIds = Array.from(new Set(
+        (Array.isArray(memberIds) ? memberIds : [])
+          .concat(memberId ? [memberId] : [])
+          .filter((id) => typeof id === 'string' && id.trim().length > 0)
+      ));
+
+      if (requestedMemberIds.length === 0) {
+        return res.status(400).json({ success: false, error: { message: 'At least one member must be selected for individual recipients.' } });
       }
-      const { members } = await MembersModel.findAll({
-        zoneId: isZoneLeader ? zoneId : undefined,
-        limit: 10000,
-      });
-      recipientMembers = members.filter((m) => m.gender === recipientTarget);
-      recipientLabel = isZoneLeader ? `${recipientTarget} Members (My Zone)` : `${recipientTarget} Members`;
-    } else if (normalizedRecipientType === 'individual') {
-      if (!recipientTarget) {
-        return res.status(400).json({ success: false, error: { message: 'recipientTarget is required for individual recipients.' } });
+
+      recipientMembers = [];
+      for (const requestedMemberId of requestedMemberIds) {
+        const member = await MembersModel.findById(requestedMemberId);
+        if (!member) {
+          return res.status(404).json({ success: false, error: { message: 'Member not found.' } });
+        }
+        if (isZoneLeader && member.zone_id !== zoneId) {
+          return res.status(403).json({ success: false, error: { message: 'Zone leaders can only message members in their own zone.' } });
+        }
+        recipientMembers.push(member);
       }
-      const member = await MembersModel.findById(recipientTarget);
-      if (!member) {
-        return res.status(404).json({ success: false, error: { message: 'Member not found.' } });
-      }
-      if (isZoneLeader && member.zone_id !== zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'Zone leaders can only message members in their own zone.' } });
-      }
-      recipientMembers = [member];
-      recipientLabel = `${member.first_name} ${member.last_name}`;
-      normalizedRecipientTarget = member.id;
+      normalizedRecipientTarget = requestedMemberIds.length === 1
+        ? requestedMemberIds[0]
+        : JSON.stringify(requestedMemberIds);
+    } else {
+      return res.status(400).json({ success: false, error: { message: 'Invalid audienceType.' } });
     }
 
     if (channel !== 'sms') {

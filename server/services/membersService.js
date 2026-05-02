@@ -57,6 +57,14 @@ const buildOccurrence = (year, month, day) => {
 const getRangeForFilter = (referenceDate, period, window) => {
   const ref = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
 
+  // "today" window — return just today's range regardless of period
+  if (window === 'today') {
+    const start = new Date(ref);
+    const end = new Date(ref);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
   if (period === 'week') {
     const dayOfWeek = ref.getDay();
     const start = new Date(ref);
@@ -291,8 +299,20 @@ function transformMember(row) {
     discoverySource: row.discovery_source,
     maritalStatus: row.marital_status,
     marriageDate: row.marriage_date ? new Date(row.marriage_date).toISOString().split('T')[0] : null,
+    spouseName: row.spouse_name,
+    spousePhone: row.spouse_phone,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    motherName: row.mother_name,
+    motherStatus: row.mother_status,
+    fatherName: row.father_name,
+    fatherStatus: row.father_status,
+    isBaptized: row.is_baptized,
+    baptismDate: row.baptism_date ? new Date(row.baptism_date).toISOString().split('T')[0] : null,
+    baptizedBy: row.baptized_by,
+    baptismMethod: row.baptism_method,
+    baptismChurch: row.baptism_church,
+    children: row.children || []
   };
 }
 
