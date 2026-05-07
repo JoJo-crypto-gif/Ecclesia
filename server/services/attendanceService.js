@@ -23,6 +23,8 @@ const transformMember = (row, { publicProfile = false } = {}) => {
       id: row.id,
       firstName: row.first_name,
       lastName: row.last_name,
+      otherName: row.other_name,
+      titles: Array.isArray(row.titles) ? row.titles : [],
       status: row.status,
       role: row.role,
       avatarUrl: row.avatar_url,
@@ -33,6 +35,8 @@ const transformMember = (row, { publicProfile = false } = {}) => {
     id: row.id,
     firstName: row.first_name,
     lastName: row.last_name,
+    otherName: row.other_name,
+    titles: Array.isArray(row.titles) ? row.titles : [],
     email: row.email,
     phone: row.phone,
     address: row.address,
@@ -234,6 +238,16 @@ const AttendanceService = {
       totalCheckins: r.total_checkins,
       engagementRate: parseFloat(r.engagement_rate) || 0,
     }));
+  },
+
+  async getReportOverview() {
+    const row = await AttendanceModel.getReportOverview();
+    return {
+      totalActiveMembers: parseInt(row.total_active_members || '0', 10),
+      totalCompletedEvents: parseInt(row.total_completed_events || '0', 10),
+      totalCheckins: parseInt(row.total_checkins || '0', 10),
+      avgAttendancePercentage: parseInt(row.avg_attendance_percentage || '0', 10),
+    };
   },
 };
 export default AttendanceService;

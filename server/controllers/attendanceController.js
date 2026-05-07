@@ -220,6 +220,16 @@ const AttendanceController = {
       next(err);
     }
   },
+
+  // GET /api/attendance/report-overview
+  async getReportOverview(req, res, next) {
+    try {
+      const data = await AttendanceService.getReportOverview();
+      res.json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 export default AttendanceController;

@@ -45,7 +45,7 @@ const CheckIn: React.FC = () => {
     firstName: '',
     lastName: '',
     phone: '',
-    middleName: ''
+    otherName: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,7 +88,7 @@ const CheckIn: React.FC = () => {
                 instanceId,
                 firstName: visitorForm.firstName,
                 lastName: visitorForm.lastName,
-                middleName: visitorForm.middleName,
+                otherName: visitorForm.otherName,
                 phone: visitorForm.phone,
                 role: 'Member',
                 status: 'Visitor',
@@ -251,11 +251,11 @@ const CheckIn: React.FC = () => {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 ml-1 mb-2 dark:text-slate-300">Middle Name <span className="text-slate-400 font-normal">(Optional)</span></label>
+                        <label className="block text-sm font-bold text-slate-700 ml-1 mb-2 dark:text-slate-300">Other Name <span className="text-slate-400 font-normal">(Optional)</span></label>
                         <input 
                             type="text" 
-                            value={visitorForm.middleName}
-                            onChange={(e) => setVisitorForm({...visitorForm, middleName: e.target.value})}
+                            value={visitorForm.otherName}
+                            onChange={(e) => setVisitorForm({...visitorForm, otherName: e.target.value})}
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                             placeholder=""
                         />

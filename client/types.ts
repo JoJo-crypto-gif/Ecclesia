@@ -19,6 +19,8 @@ export interface Member {
   id: string;
   firstName: string;
   lastName: string;
+  otherName?: string;
+  titles?: string[];
   email: string;
   phone: string;
   address?: string;

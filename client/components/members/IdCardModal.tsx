@@ -3,6 +3,7 @@ import { Printer } from 'lucide-react';
 import Modal from '../Modal';
 import { MemberIdCard } from '../MemberIdCard';
 import { Member } from '../../types';
+import { getMemberDisplayName } from '../../utils/memberName';
 
 interface IdCardModalProps {
   isOpen: boolean;
@@ -18,10 +19,11 @@ const IdCardModal: React.FC<IdCardModalProps> = ({ isOpen, onClose, member, zone
 
     const printWindow = window.open('', '', 'width=800,height=600');
     if (printWindow) {
+      const cardOwner = getMemberDisplayName(member, { includeOtherName: false }) || 'Member';
       printWindow.document.write(`
         <html>
           <head>
-            <title>Print ID Card - ${member?.firstName} ${member?.lastName}</title>
+            <title>Print ID Card - ${cardOwner}</title>
             <script src="https://cdn.tailwindcss.com"></script>
             <style>
               body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f8fafc; }

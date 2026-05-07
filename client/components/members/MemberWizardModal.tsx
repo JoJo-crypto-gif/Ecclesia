@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Aperture, User, Upload, Camera, Mail, Phone, MapPin, 
-  AlertCircle, Briefcase, Calendar, ArrowLeft, ArrowRight, CheckCircle2, Megaphone, Plus, Trash2 
+  AlertCircle, Briefcase, Calendar, ArrowLeft, ArrowRight, CheckCircle2, Megaphone, Plus, Trash2, ChevronUp, ChevronDown
 } from 'lucide-react';
 import Modal from '../Modal';
 import { Member, MemberChild, MemberStatus, Zone } from '../../types';
@@ -16,6 +16,8 @@ interface MemberWizardModalProps {
   lockedZoneId?: string;
   lockedZoneName?: string;
 }
+
+const TITLE_OPTIONS = ['Mr.', 'Mrs.', 'Miss', 'Ms.', 'Mister', 'Dr.', 'Rev.', 'Prof.', 'Hon.', 'Pastor', 'Bishop'];
 
 const MemberWizardModal: React.FC<MemberWizardModalProps> = ({ 
   isOpen, onClose, editingMember, onSave, zones, isZoneLocked = false, lockedZoneId, lockedZoneName
@@ -45,6 +47,8 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
       if (isZoneLocked && lockedZoneId) {
         nextFormData.zoneId = lockedZoneId;
       }
+
+      nextFormData.titles = Array.isArray(nextFormData.titles) ? nextFormData.titles : [];
 
       setFormData(nextFormData);
       setCurrentStep(1);
@@ -161,6 +165,15 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
     if (!validateCurrentStep()) return;
     
     if (formData.firstName && formData.lastName) {
+      const normalizedTitles = (formData.titles || []).reduce<string[]>((acc, title) => {
+        const trimmed = title.trim();
+        if (!trimmed || acc.some((item) => item.toLowerCase() === trimmed.toLowerCase())) {
+          return acc;
+        }
+        acc.push(trimmed);
+        return acc;
+      }, []);
+
       // Normalize Marital Status
       const normalizedMaritalStatus = formData.maritalStatus || null;
       const isMarried = normalizedMaritalStatus === 'Married';
@@ -170,6 +183,8 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
 
       const normalizedPayload = {
         ...formData,
+        otherName: formData.otherName?.trim() || null,
+        titles: normalizedTitles,
         maritalStatus: normalizedMaritalStatus,
         marriageDate: isMarried ? (formData.marriageDate || null) : null,
         spouseName: isMarried ? (formData.spouseName || null) : null,
@@ -187,6 +202,47 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
         : normalizedPayload;
       onSave(payload);
     }
+  };
+
+  const addTitle = (rawTitle: string) => {
+    const title = rawTitle.trim();
+    if (!title) return;
+
+    setFormData((prev) => {
+      const currentTitles = Array.isArray(prev.titles) ? prev.titles : [];
+      if (currentTitles.some((item) => item.toLowerCase() === title.toLowerCase())) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        titles: [...currentTitles, title],
+      };
+    });
+  };
+
+  const removeTitle = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      titles: (prev.titles || []).filter((_, currentIndex) => currentIndex !== index),
+    }));
+  };
+
+  const moveTitle = (index: number, directionStep: -1 | 1) => {
+    setFormData((prev) => {
+      const currentTitles = [...(prev.titles || [])];
+      const nextIndex = index + directionStep;
+
+      if (nextIndex < 0 || nextIndex >= currentTitles.length) {
+        return prev;
+      }
+
+      [currentTitles[index], currentTitles[nextIndex]] = [currentTitles[nextIndex], currentTitles[index]];
+      return {
+        ...prev,
+        titles: currentTitles,
+      };
+    });
   };
 
   const renderStepIndicator = () => (
@@ -302,7 +358,82 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4 dark:border-slate-700 dark:bg-slate-800/60">
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400">Titles</h4>
+                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Optional. Titles appear on the ID card in the order shown here.</p>
+                            </div>
+
+                            {(formData.titles || []).length > 0 ? (
+                                <div className="space-y-2">
+                                    {(formData.titles || []).map((title, index) => (
+                                        <div key={`${title}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-600 dark:bg-slate-700">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 text-[10px] font-bold text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300">
+                                                    {index + 1}
+                                                </span>
+                                                <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => moveTitle(index, -1)}
+                                                    disabled={index === 0}
+                                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                                                    title="Move up"
+                                                >
+                                                    <ChevronUp size={14} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => moveTitle(index, 1)}
+                                                    disabled={index === (formData.titles || []).length - 1}
+                                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                                                    title="Move down"
+                                                >
+                                                    <ChevronDown size={14} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeTitle(index)}
+                                                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+                                                    title="Remove title"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border border-dashed border-slate-300 px-4 py-5 text-center text-sm text-slate-400 dark:border-slate-600 dark:text-slate-500">
+                                    No titles added yet
+                                </div>
+                            )}
+
+                            <div className="flex flex-wrap gap-2">
+                                {TITLE_OPTIONS.map((title) => {
+                                    const isSelected = (formData.titles || []).some((item) => item.toLowerCase() === title.toLowerCase());
+                                    return (
+                                        <button
+                                            key={title}
+                                            type="button"
+                                            onClick={() => addTitle(title)}
+                                            disabled={isSelected}
+                                            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+                                                isSelected
+                                                    ? 'cursor-not-allowed border-indigo-200 bg-indigo-50 text-indigo-500 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300'
+                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300'
+                                            }`}
+                                        >
+                                            {title}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">First Name <span className="text-rose-500">*</span></label>
                                 <input 
@@ -312,6 +443,17 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
                                     placeholder="Jane"
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Other Name</label>
+                                <input 
+                                    type="text" 
+                                    value={formData.otherName || ''} 
+                                    onChange={e => setFormData({...formData, otherName: e.target.value})}
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                    placeholder="Middle or additional name"
+                                />
+                                <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Saved on the profile, hidden on the ID card.</p>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Last Name <span className="text-rose-500">*</span></label>

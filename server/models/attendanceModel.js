@@ -273,7 +273,7 @@ const AttendanceModel = {
         JOIN events e ON e.id = ei.event_id
         CROSS JOIN member_info mi
         WHERE ei.date >= mi.join_date
-          AND ei.date < CURRENT_DATE
+          AND ei.date <= CURRENT_DATE
           AND ei.status <> 'cancelled'
           AND (mi.zone_id IS NULL OR e.zone_id = mi.zone_id OR e.zone_id IS NULL)
       ),
@@ -281,11 +281,13 @@ const AttendanceModel = {
         SELECT
           ei.id,
           ei.date,
-          ei.type
-        FROM eligible_instances ei
+          e.type
+        FROM event_instances ei
+        JOIN events e ON e.id = ei.event_id
         JOIN attendance a
           ON a.instance_id = ei.id
          AND a.member_id = $1
+        WHERE ei.status <> 'cancelled'
       ),
       total_events AS (
         SELECT COUNT(*)::int AS possible
@@ -459,6 +461,31 @@ const AttendanceModel = {
         END
     `);
     return result.rows;
+  },
+
+  // ─── Report Overview Stats ─────────────────────────────
+  async getReportOverview() {
+    const result = await query(`
+      SELECT
+        (SELECT COUNT(*)::int FROM members WHERE status = 'Active') AS total_active_members,
+        (SELECT COUNT(*)::int FROM event_instances WHERE status = 'completed') AS total_completed_events,
+        (SELECT COUNT(*)::int FROM attendance) AS total_checkins,
+        COALESCE(
+          (
+            SELECT
+              CASE
+                WHEN COUNT(DISTINCT ei.id) = 0 THEN 0
+                WHEN (SELECT COUNT(*) FROM members WHERE status = 'Active') = 0 THEN 0
+                ELSE
+                  ROUND((COUNT(a.id)::numeric / COUNT(DISTINCT ei.id)::numeric) / (SELECT COUNT(*) FROM members WHERE status = 'Active')::numeric * 100)
+              END
+            FROM event_instances ei
+            LEFT JOIN attendance a ON a.instance_id = ei.id
+            WHERE ei.status = 'completed' AND ei.date >= CURRENT_DATE - INTERVAL '30 days'
+          ), 0
+        )::int AS avg_attendance_percentage
+    `);
+    return result.rows[0];
   },
 };
 

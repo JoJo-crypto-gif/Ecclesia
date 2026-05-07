@@ -10,6 +10,7 @@ import MemberWizardModal from '../components/members/MemberWizardModal';
 import ViewMemberModal from '../components/members/ViewMemberModal';
 import IdCardModal from '../components/members/IdCardModal';
 import Modal from '../components/Modal';
+import { getMemberDisplayName, getMemberTitles } from '../utils/memberName';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 75, 100, 150, 200, 250];
 
@@ -82,6 +83,8 @@ const Members: React.FC<MembersProps> = ({ user }) => {
     return age;
   };
 
+  const getCsvValue = (value: string | undefined) => `"${(value || '').replace(/"/g, '""')}"`;
+
   // --- Selection ---
   const toggleSelection = (id: string) => {
     const s = new Set(selectedIds);
@@ -123,13 +126,22 @@ const Members: React.FC<MembersProps> = ({ user }) => {
 
   // --- Export CSV ---
   const handleExportCSV = () => {
-    const headers = ["First Name", "Last Name", "Email", "Phone", "Status", "Zone", "Role"];
+    const headers = ["Titles", "First Name", "Other Name", "Last Name", "Email", "Phone", "Status", "Zone", "Role"];
     const csvRows = [
       headers.join(','),
       ...members.map(m => {
         const zoneName = zones.find(z => z.id === m.zoneId)?.name || 'Unassigned';
-        const esc = (v: string | undefined) => `"${(v || '').replace(/"/g, '""')}"`;
-        return [esc(m.firstName), esc(m.lastName), esc(m.email), esc(m.phone), esc(m.status), esc(zoneName), esc(m.role)].join(',');
+        return [
+          getCsvValue(getMemberTitles(m)),
+          getCsvValue(m.firstName),
+          getCsvValue(m.otherName),
+          getCsvValue(m.lastName),
+          getCsvValue(m.email),
+          getCsvValue(m.phone),
+          getCsvValue(m.status),
+          getCsvValue(zoneName),
+          getCsvValue(m.role),
+        ].join(',');
       })
     ];
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -376,7 +388,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                               <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${member.status === MemberStatus.Active ? 'bg-emerald-500' : member.status === MemberStatus.Inactive ? 'bg-slate-400' : 'bg-amber-500'} dark:border-slate-800`}></div>
                             </div>
                             <div>
-                              <div className="font-bold text-slate-900 dark:text-slate-100">{member.firstName} {member.lastName}</div>
+                              <div className="font-bold text-slate-900 dark:text-slate-100">{getMemberDisplayName(member)}</div>
                               <div className="text-xs text-slate-500 mt-0.5 dark:text-slate-400">
                                 {member.dob ? `${calculateAge(member.dob)} yrs old • ` : ''}
                                 Joined {member.joinDate ? new Date(member.joinDate).toLocaleDateString() : 'N/A'}
@@ -436,7 +448,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
-                          <h3 className="font-bold text-slate-900 truncate dark:text-white">{member.firstName} {member.lastName}</h3>
+                          <h3 className="font-bold text-slate-900 truncate dark:text-white">{getMemberDisplayName(member)}</h3>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase ${getStatusBadgeStyles(member.status)}`}>{member.status}</span>
                         </div>
                         <div className="text-xs text-indigo-600 font-medium mb-2 dark:text-indigo-400">{member.role || 'Member'}</div>
@@ -484,7 +496,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                       <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${getStatusBadgeStyles(member.status)}`}>{member.status}</span>
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 leading-tight dark:text-white">{member.firstName} {member.lastName}</h3>
+                      <h3 className="text-lg font-bold text-slate-900 leading-tight dark:text-white">{getMemberDisplayName(member)}</h3>
                       <p className="text-indigo-600 font-medium text-sm mb-4 dark:text-indigo-400">{member.role || 'Member'}</p>
                       <div className="space-y-2 mb-6">
                         <div className="flex items-center text-xs text-slate-500 dark:text-slate-400"><Mail size={14} className="mr-2 opacity-70" /><span className="truncate">{member.email}</span></div>

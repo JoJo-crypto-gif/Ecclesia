@@ -20,6 +20,7 @@ router.use(requireAuth);
 // ─── Stats & Trends ──────────────────────────────────────
 router.get('/stats', AttendanceController.getStats);
 router.get('/global-trends', AttendanceController.getGlobalTrends);
+router.get('/report-overview', requireRole(['admin']), AttendanceController.getReportOverview);
 router.get('/zone-health', requireRole(['admin']), AttendanceController.getZoneHealth);
 router.get('/demographics', requireRole(['admin']), AttendanceController.getDemographicAttendance);
 router.get('/trends', AttendanceController.getDynamicTrends); // New dynamic endpoint

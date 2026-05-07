@@ -15,6 +15,7 @@ import { DataProvider, useData } from './context/DataContext';
 import { User } from './types';
 import ZoneDashboard from './pages/ZoneDashboard';
 import Settings from './pages/Settings';
+import Reports from './pages/Reports';
 import MobileHeader from './components/MobileHeader';
 import { useLocation } from 'react-router-dom';
 
@@ -258,6 +259,21 @@ const AppInner: React.FC = () => {
             setIsMobileMenuOpen={setIsMobileMenuOpen}
           >
             <Messaging user={user} />
+          </ProtectedLayout>
+        } />
+
+        <Route path="/reports" element={
+          <ProtectedLayout 
+            roles={['admin']} 
+            user={user} 
+            authLoading={authLoading} 
+            onLogout={handleLogout} 
+            isSidebarCollapsed={isSidebarCollapsed} 
+            toggleSidebar={toggleSidebar} 
+            isMobileMenuOpen={isMobileMenuOpen} 
+            setIsMobileMenuOpen={setIsMobileMenuOpen}
+          >
+            <Reports user={user} />
           </ProtectedLayout>
         } />
 

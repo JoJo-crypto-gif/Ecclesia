@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Map, LogOut, ChevronLeft, Moon, Sun, QrCode, MessageSquare, Calendar, Settings as SettingsIcon, Gift } from 'lucide-react';
+import { LayoutDashboard, Users, Map, LogOut, ChevronLeft, Moon, Sun, QrCode, MessageSquare, Calendar, Settings as SettingsIcon, Gift, FileBarChart } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import Logo from './Logo';
 import { User } from '../types';
@@ -15,7 +15,9 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onLogout, isCollapsed, toggleSidebar, user, isMobileOpen = false, onCloseMobile }) => {
-  const { theme, toggleTheme } = useData();
+  const { theme, toggleTheme, settings } = useData();
+  const churchName = settings.church_name || 'Ecclesia';
+  const churchLogo = settings.church_logo || '';
   const isAdmin = user.role === 'admin';
   const displayName = user.name || user.email;
   const initials = displayName
@@ -61,10 +63,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isCollapsed, toggleSidebar,
       <div className={`p-6 pb-2 transition-all duration-500 ${isCollapsed ? 'items-center px-4' : ''}`}>
         <div className={`flex items-center gap-3 text-indigo-600 font-bold text-2xl tracking-tight dark:text-indigo-400 overflow-hidden whitespace-nowrap`}>
           <div className="flex items-center justify-center hover:rotate-6 transition-transform duration-300">
-            <Logo size="md" />
+            <Logo size="md" overrideSrc={churchLogo} />
           </div>
           <span className={`transition-all duration-500 ${isCollapsed ? 'opacity-0 w-0 translate-x-10' : 'opacity-100 w-auto translate-x-0'}`}>
-            Ecclesia
+            {churchName}
           </span>
         </div>
       </div>
@@ -160,6 +162,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isCollapsed, toggleSidebar,
             </div>
           )}
         </NavLink>
+
+        {isAdmin && (
+          <NavLink to="/reports" className={navClasses}>
+            <FileBarChart size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:-rotate-3" />
+            <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Reports</span>
+             {isCollapsed && (
+              <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
+                  Reports
+              </div>
+            )}
+          </NavLink>
+        )}
 
         <NavLink to="/settings" className={navClasses}>
           <SettingsIcon size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />

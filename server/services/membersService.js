@@ -107,6 +107,29 @@ const findOccurrenceInRange = (rawDate, rangeStart, rangeEnd) => {
   return candidates[0] || null;
 };
 
+const normalizeTitles = (titles) => {
+  if (!Array.isArray(titles)) return [];
+
+  const seen = new Set();
+  return titles
+    .map((title) => (typeof title === 'string' ? title.trim() : ''))
+    .filter((title) => {
+      if (!title) return false;
+      const key = title.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
+
+const normalizeOptionalString = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  return trimmed || null;
+};
+
 /**
  * Members business logic layer.
  * Handles validation, transformation, and orchestration.
@@ -214,15 +237,21 @@ const MembersService = {
    * Create a new member.
    */
   async create(data) {
+    const normalizedData = {
+      ...data,
+      otherName: normalizeOptionalString(data.otherName),
+      titles: normalizeTitles(data.titles),
+    };
+
     // Check for duplicate email
-    const existing = await MembersModel.findByEmail(data.email);
+    const existing = await MembersModel.findByEmail(normalizedData.email);
     if (existing) {
       const err = new Error('A member with this email already exists');
       err.statusCode = 409;
       throw err;
     }
 
-    const member = await MembersModel.create(data);
+    const member = await MembersModel.create(normalizedData);
     return transformMember(member);
   },
 
@@ -230,6 +259,14 @@ const MembersService = {
    * Update an existing member.
    */
   async update(id, data) {
+    const normalizedData = { ...data };
+    if (Object.prototype.hasOwnProperty.call(data, 'otherName')) {
+      normalizedData.otherName = normalizeOptionalString(data.otherName);
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'titles')) {
+      normalizedData.titles = normalizeTitles(data.titles);
+    }
+
     // Check member exists
     const existing = await MembersModel.findById(id);
     if (!existing) {
@@ -239,8 +276,8 @@ const MembersService = {
     }
 
     // If email is being changed, check it's not taken
-    if (data.email && data.email !== existing.email) {
-      const emailTaken = await MembersModel.findByEmail(data.email);
+    if (normalizedData.email && normalizedData.email !== existing.email) {
+      const emailTaken = await MembersModel.findByEmail(normalizedData.email);
       if (emailTaken) {
         const err = new Error('A member with this email already exists');
         err.statusCode = 409;
@@ -248,7 +285,7 @@ const MembersService = {
       }
     }
 
-    const member = await MembersModel.update(id, data);
+    const member = await MembersModel.update(id, normalizedData);
     return transformMember(member);
   },
 
@@ -282,6 +319,8 @@ function transformMember(row) {
     id: row.id,
     firstName: row.first_name,
     lastName: row.last_name,
+    otherName: row.other_name,
+    titles: Array.isArray(row.titles) ? row.titles : [],
     email: row.email,
     phone: row.phone,
     address: row.address,

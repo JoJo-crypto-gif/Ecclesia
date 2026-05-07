@@ -192,12 +192,14 @@ const MembersController = {
 
       const data = {
         ...req.body,
+        otherName: req.body.otherName || req.body.middleName || null,
         status: 'Visitor',
         role: req.body.role || 'Member',
         joinDate: req.body.joinDate,
         zoneId: instance.zoneId || null,
       };
       delete data.instanceId;
+      delete data.middleName;
       const member = await MembersService.create(data);
       res.status(201).json({ success: true, data: member });
     } catch (err) {

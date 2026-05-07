@@ -1,6 +1,7 @@
 import React from "react";
 import { Member } from "../types";
 import { QrCode, Phone, Mail } from "lucide-react";
+import { getMemberTitles } from "../utils/memberName";
 
 interface MemberIdCardProps {
   member: Member;
@@ -14,6 +15,7 @@ export const MemberIdCard: React.FC<MemberIdCardProps> = ({
   zoneName,
 }) => {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(member.id)}`;
+  const titleLine = getMemberTitles(member);
 
   const CardBase = ({
     children,
@@ -110,6 +112,11 @@ export const MemberIdCard: React.FC<MemberIdCardProps> = ({
 
           {/* Details */}
           <div className="flex-1 space-y-0.5">
+            {titleLine && (
+              <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-indigo-600">
+                {titleLine}
+              </div>
+            )}
             <h3 className="font-extrabold text-slate-900 text-xl leading-tight line-clamp-1">
               {member.firstName}
             </h3>

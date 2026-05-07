@@ -8,6 +8,7 @@ import {
 import Modal from '../Modal';
 import { Member, Zone, MemberStatus } from '../../types';
 import { useData } from '../../context/DataContext';
+import { getMemberDisplayName, getMemberTitles } from '../../utils/memberName';
 
 interface MemberAnalytics {
   totalAttended: number;
@@ -68,7 +69,7 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
         )}
       </div>
       <div className="flex-1 pt-1">
-        <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{member.firstName} {member.lastName}</h2>
+        <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{getMemberDisplayName(member)}</h2>
         <div className="flex flex-wrap gap-2 mt-3">
           <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20">
             {member.role || 'Member'}
@@ -84,12 +85,12 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
             </div>
             <span className="font-medium">{member.email}</span>
           </div>
-          <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
-            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
+          <a href={`tel:${member.phone}`} className="flex items-center gap-3 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group">
+            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 dark:bg-slate-800 dark:border-slate-700 group-hover:border-indigo-200 dark:group-hover:border-indigo-500/30 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10 transition-all">
               <Phone size={14} />
             </div>
-            <span className="font-medium">{member.phone}</span>
-          </div>
+            <span className="font-medium underline-offset-4">{member.phone}</span>
+          </a>
         </div>
       </div>
     </div>
@@ -97,6 +98,14 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
     <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
       <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Personal Information</h3>
       <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+        <div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Titles</span>
+          <span className="text-slate-800 font-bold dark:text-slate-200">{getMemberTitles(member) || 'Not specified'}</span>
+        </div>
+        <div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Other Name(s)</span>
+          <span className="text-slate-800 font-bold dark:text-slate-200">{member.otherName || 'Not specified'}</span>
+        </div>
         <div>
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Gender</span>
           <span className="text-slate-800 font-bold dark:text-slate-200">{member.gender || 'Not specified'}</span>
@@ -212,7 +221,13 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Spouse Contact</span>
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono">{member.spousePhone || 'Not specified'}</span>
+              {member.spousePhone ? (
+                <a href={`tel:${member.spousePhone}`} className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 underline-offset-4">
+                  {member.spousePhone}
+                </a>
+              ) : (
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono">Not specified</span>
+              )}
             </div>
           </div>
         </div>
@@ -275,7 +290,9 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
                 <div className="min-w-0">
                   <span className="text-sm font-bold text-slate-900 dark:text-white block truncate">{child.name}</span>
                   {child.phone && (
-                    <span className="text-xs text-slate-500 font-mono dark:text-slate-400">{child.phone}</span>
+                    <a href={`tel:${child.phone}`} className="text-xs text-slate-500 font-mono dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 underline-offset-2">
+                      {child.phone}
+                    </a>
                   )}
                 </div>
               </div>
@@ -299,7 +316,13 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
         </div>
         <div>
           <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Contact Phone</span>
-          <span className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono">{member.emergencyPhone || 'Not specified'}</span>
+          {member.emergencyPhone ? (
+            <a href={`tel:${member.emergencyPhone}`} className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono hover:text-rose-600 dark:hover:text-rose-400 transition-colors decoration-rose-500/30 underline-offset-4">
+              {member.emergencyPhone}
+            </a>
+          ) : (
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono">Not specified</span>
+          )}
         </div>
       </div>
     </div>

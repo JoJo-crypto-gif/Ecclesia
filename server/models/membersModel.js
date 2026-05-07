@@ -16,6 +16,8 @@ const MembersModel = {
       conditions.push(`(
         first_name ILIKE $${paramIndex} OR
         last_name ILIKE $${paramIndex} OR
+        other_name ILIKE $${paramIndex} OR
+        titles::text ILIKE $${paramIndex} OR
         email ILIKE $${paramIndex} OR
         phone ILIKE $${paramIndex}
       )`);
@@ -94,7 +96,7 @@ const MembersModel = {
    */
   async create(data) {
     const {
-      firstName, lastName, email, phone, address, status,
+      firstName, lastName, otherName, titles, email, phone, address, status,
       zoneId, joinDate, avatarUrl, notes, dob, gender,
       role, occupation, emergencyContact, emergencyPhone, discoverySource,
       maritalStatus, marriageDate, spouseName, spousePhone,
@@ -105,7 +107,7 @@ const MembersModel = {
 
     const result = await query(
       `INSERT INTO members (
-        first_name, last_name, email, phone, address, status,
+        first_name, last_name, other_name, titles, email, phone, address, status,
         zone_id, join_date, avatar_url, notes, dob, gender,
         role, occupation, emergency_contact, emergency_phone, discovery_source,
         marital_status, marriage_date, spouse_name, spouse_phone,
@@ -113,16 +115,17 @@ const MembersModel = {
         is_baptized, baptism_date, baptized_by, baptism_method, baptism_church,
         children
       ) VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10, $11, $12,
-        $13, $14, $15, $16, $17,
-        $18, $19, $20, $21, $22, $23, $24, $25,
-        $26, $27, $28, $29, $30,
-        $31
+        $1, $2, $3, $4, $5, $6, $7, $8,
+        $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18, $19,
+        $20, $21, $22, $23, $24, $25, $26, $27,
+        $28, $29, $30, $31, $32,
+        $33
       ) RETURNING *`,
       [
-        firstName, lastName, email, phone || null, address || null,
-        status || 'Active', zoneId || null, joinDate || new Date().toISOString().split('T')[0],
+        firstName, lastName, otherName || null, JSON.stringify(Array.isArray(titles) ? titles : []),
+        email, phone || null, address || null, status || 'Active',
+        zoneId || null, joinDate || new Date().toISOString().split('T')[0],
         avatarUrl || null, notes || null, dob || null, gender || null,
         role || null, occupation || null, emergencyContact || null, emergencyPhone || null,
         discoverySource || null, maritalStatus || null, marriageDate || null, spouseName || null, spousePhone || null,
@@ -143,6 +146,8 @@ const MembersModel = {
     const fieldMap = {
       firstName: 'first_name',
       lastName: 'last_name',
+      otherName: 'other_name',
+      titles: 'titles',
       email: 'email',
       phone: 'phone',
       address: 'address',
@@ -177,12 +182,20 @@ const MembersModel = {
     const setClauses = [];
     const params = [];
     let paramIndex = 1;
+    const jsonFields = new Set(['children', 'titles']);
 
     for (const [jsKey, dbColumn] of Object.entries(fieldMap)) {
       if (data[jsKey] !== undefined) {
         setClauses.push(`${dbColumn} = $${paramIndex}`);
-        // JSONB fields need to be stringified
-        params.push(jsKey === 'children' ? JSON.stringify(data[jsKey]) : data[jsKey]);
+        if (jsonFields.has(jsKey)) {
+          params.push(
+            jsKey === 'titles'
+              ? JSON.stringify(Array.isArray(data[jsKey]) ? data[jsKey] : [])
+              : JSON.stringify(data[jsKey] || [])
+          );
+        } else {
+          params.push(data[jsKey]);
+        }
         paramIndex++;
       }
     }
