@@ -12,6 +12,7 @@ import Celebrations from './pages/Celebrations';
 import Login from './pages/Login';
 import KioskMode from './pages/KioskMode';
 import { DataProvider, useData } from './context/DataContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { User } from './types';
 import ZoneDashboard from './pages/ZoneDashboard';
 import Settings from './pages/Settings';
@@ -71,8 +72,7 @@ const ProtectedLayout: React.FC<ProtectedLayoutProps & { isMobileMenuOpen: boole
 };
 
 const AppInner: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { user, authLoading, login, logout } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { refreshData, fetchMembers, fetchMessages, fetchSettings } = useData();
@@ -95,8 +95,7 @@ const AppInner: React.FC = () => {
       if (!res.ok || !data.success) {
         return { success: false, error: data?.error?.message || 'Login failed' };
       }
-      setUser(data.data);
-      await Promise.all([refreshData(), fetchMembers(), fetchMessages(), fetchSettings()]);
+      login(data.data);
       return { success: true, role: data.data.role };
     } catch {
       return { success: false, error: 'Login failed' };
@@ -109,32 +108,17 @@ const AppInner: React.FC = () => {
     } catch {
       // ignore
     } finally {
-      setUser(null);
+      logout();
     }
   };
   const toggleSidebar = () => setIsSidebarCollapsed(prev => !prev);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            setUser(data.data);
-            // Session restored — re-fetch all data now that we're authenticated
-            await Promise.all([refreshData(), fetchMembers(), fetchMessages(), fetchSettings()]);
-          }
-        } else {
-          setUser(null);
-        }
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-    loadUser();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (user) {
+      // Session restored or login happened — re-fetch all data now that we're authenticated
+      Promise.all([refreshData(), fetchMembers(), fetchMessages(), fetchSettings()]).catch(console.error);
+    }
+  }, [user, refreshData, fetchMembers, fetchMessages, fetchSettings]);
 
 
   return (
@@ -300,9 +284,11 @@ const AppInner: React.FC = () => {
 const App: React.FC = () => {
   return (
     <HashRouter>
-      <DataProvider>
-        <AppInner />
-      </DataProvider>
+      <AuthProvider>
+        <DataProvider>
+          <AppInner />
+        </DataProvider>
+      </AuthProvider>
     </HashRouter>
   );
 };

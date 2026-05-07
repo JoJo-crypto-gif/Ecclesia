@@ -3,6 +3,7 @@ import MembersController from '../controllers/membersController.js';
 import { requireFields, validateEmail } from '../middleware/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { createIpRateLimiter } from '../middleware/rateLimit.js';
+import { checkPermission } from '../middleware/permissionMiddleware.js';
 
 const router = Router();
 const publicVisitorRateLimiter = createIpRateLimiter({
@@ -25,23 +26,24 @@ router.post(
 router.use(requireAuth);
 
 // GET /api/members — list all (with search, filter, pagination)
-router.get('/', MembersController.list);
+router.get('/', checkPermission('members', 'read'), MembersController.list);
 
 // GET /api/members/stats — dashboard statistics
-router.get('/stats', MembersController.getStats);
+router.get('/stats', checkPermission('members', 'read'), MembersController.getStats);
 
 // GET /api/members/birthdays — get birthdays by month (query: ?month)
-router.get('/birthdays', MembersController.getBirthdays);
+router.get('/birthdays', checkPermission('members', 'read'), MembersController.getBirthdays);
 
 // GET /api/members/celebrations — birthdays or anniversaries by period filters
-router.get('/celebrations', MembersController.getCelebrations);
+router.get('/celebrations', checkPermission('members', 'read'), MembersController.getCelebrations);
 
 // GET /api/members/:id — get single member
-router.get('/:id', MembersController.getById);
+router.get('/:id', checkPermission('members', 'read'), MembersController.getById);
 
 // POST /api/members — create member
 router.post(
   '/',
+  checkPermission('members', 'create'),
   requireFields(['firstName', 'lastName']), // Email and Phone are optional/conditional
   validateEmail,
   MembersController.create
@@ -50,11 +52,12 @@ router.post(
 // PUT /api/members/:id — update member
 router.put(
   '/:id',
+  checkPermission('members', 'edit'),
   validateEmail,
   MembersController.update
 );
 
 // DELETE /api/members/:id — delete member
-router.delete('/:id', MembersController.delete);
+router.delete('/:id', checkPermission('members', 'delete'), MembersController.delete);
 
 export default router;

@@ -79,11 +79,20 @@ export interface DashboardStats {
   discoveryDistribution?: { name: string; value: number }[];
 }
 
+export interface PermissionSet {
+  read: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+}
+
 export interface User {
   id: string;
   name?: string;
   email: string;
-  role: 'admin' | 'zone_leader';
+  role: string;
+  roleId?: string;
+  permissions?: Record<string, PermissionSet>;
   memberId?: string;
   zoneId?: string;
 }

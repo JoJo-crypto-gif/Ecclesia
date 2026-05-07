@@ -7,6 +7,7 @@ import authRoutes from './auth.js';
 import usersRoutes from './users.js';
 import settingsRoutes from './settings.js';
 import messagingRoutes from './messaging.js';
+import rolesRoutes from './roles.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -24,5 +25,6 @@ router.use('/events', eventsRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/messaging', messagingRoutes);
+router.use('/roles', rolesRoutes);
 
 export default router;

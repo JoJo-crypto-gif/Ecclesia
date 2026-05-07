@@ -2,12 +2,22 @@ import { query } from '../config/db.js';
 
 const UsersModel = {
   async findByEmail(email) {
-    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await query(`
+      SELECT u.*, r.permissions, r.name as role_name 
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.email = $1
+    `, [email]);
     return result.rows[0] || null;
   },
 
   async findById(id) {
-    const result = await query('SELECT * FROM users WHERE id = $1', [id]);
+    const result = await query(`
+      SELECT u.*, r.permissions, r.name as role_name 
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.id = $1
+    `, [id]);
     return result.rows[0] || null;
   },
 
@@ -17,12 +27,12 @@ const UsersModel = {
   },
 
   async create(data) {
-    const { name, email, passwordHash, role, memberId, zoneId } = data;
+    const { name, email, passwordHash, role, roleId, memberId, zoneId } = data;
     const result = await query(
-      `INSERT INTO users (name, email, password_hash, role, member_id, zone_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (name, email, password_hash, role, role_id, member_id, zone_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [name || null, email, passwordHash, role, memberId || null, zoneId || null]
+      [name || null, email, passwordHash, role, roleId || null, memberId || null, zoneId || null]
     );
     return result.rows[0];
   },
@@ -33,6 +43,7 @@ const UsersModel = {
       email: 'email',
       passwordHash: 'password_hash',
       role: 'role',
+      roleId: 'role_id',
       memberId: 'member_id',
       zoneId: 'zone_id',
     };

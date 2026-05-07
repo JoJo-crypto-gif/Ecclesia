@@ -88,6 +88,8 @@ function toSafeUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    roleId: user.role_id,
+    permissions: user.permissions || {},
     memberId: user.member_id,
     zoneId: user.zone_id,
   };

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import AttendanceController from '../controllers/attendanceController.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/auth.js';
+import { checkPermission } from '../middleware/permissionMiddleware.js';
 import { createIpRateLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
@@ -18,27 +19,27 @@ router.post('/check-in', publicCheckInRateLimiter, AttendanceController.checkIn)
 router.use(requireAuth);
 
 // ─── Stats & Trends ──────────────────────────────────────
-router.get('/stats', AttendanceController.getStats);
-router.get('/global-trends', AttendanceController.getGlobalTrends);
-router.get('/report-overview', requireRole(['admin']), AttendanceController.getReportOverview);
-router.get('/zone-health', requireRole(['admin']), AttendanceController.getZoneHealth);
-router.get('/demographics', requireRole(['admin']), AttendanceController.getDemographicAttendance);
-router.get('/trends', AttendanceController.getDynamicTrends); // New dynamic endpoint
-router.get('/trends/:eventId', AttendanceController.getTrends);
+router.get('/stats', checkPermission('attendance', 'read'), AttendanceController.getStats);
+router.get('/global-trends', checkPermission('reports', 'read'), AttendanceController.getGlobalTrends);
+router.get('/report-overview', checkPermission('reports', 'read'), AttendanceController.getReportOverview);
+router.get('/zone-health', checkPermission('reports', 'read'), AttendanceController.getZoneHealth);
+router.get('/demographics', checkPermission('reports', 'read'), AttendanceController.getDemographicAttendance);
+router.get('/trends', checkPermission('attendance', 'read'), AttendanceController.getDynamicTrends); // New dynamic endpoint
+router.get('/trends/:eventId', checkPermission('attendance', 'read'), AttendanceController.getTrends);
 
 // ─── Instance attendance ─────────────────────────────────
-router.get('/instance/:instanceId', AttendanceController.listByInstance);
+router.get('/instance/:instanceId', checkPermission('attendance', 'read'), AttendanceController.listByInstance);
 
 // ─── Member analytics (must come before /member/:memberId) ───
-router.get('/member/:memberId/analytics', AttendanceController.getMemberAnalytics);
+router.get('/member/:memberId/analytics', checkPermission('attendance', 'read'), AttendanceController.getMemberAnalytics);
 
 // ─── Member history ──────────────────────────────────────
-router.get('/member/:memberId', AttendanceController.getMemberHistory);
+router.get('/member/:memberId', checkPermission('attendance', 'read'), AttendanceController.getMemberHistory);
 
 // ─── Remove attendance (specific instance+member) ────────
-router.delete('/instance/:instanceId/member/:memberId', AttendanceController.removeByInstanceAndMember);
+router.delete('/instance/:instanceId/member/:memberId', checkPermission('attendance', 'delete'), AttendanceController.removeByInstanceAndMember);
 
 // ─── Remove by record ID ────────────────────────────────
-router.delete('/:id', AttendanceController.remove);
+router.delete('/:id', checkPermission('attendance', 'delete'), AttendanceController.remove);
 
 export default router;
