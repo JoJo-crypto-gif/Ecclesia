@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { FileBarChart, Users, Calendar, BarChart3, Search, UserCheck, ShieldAlert, HeartPulse, CheckCircle2, Download, Printer } from 'lucide-react';
-import { Member } from '../types';
+import { Member, EventInstance, AttendanceRecord, User } from '../types';
 import Logo from '../components/Logo';
 import ReportSessionPickerModal from '../components/attendance/ReportSessionPickerModal';
 import ViewMemberModal from '../components/members/ViewMemberModal';
@@ -16,7 +16,36 @@ interface ReportOverview {
   avgAttendancePercentage: number;
 }
 
-const Reports: React.FC<{ user: any }> = ({ user }) => {
+interface ZoneHealth {
+  id: string;
+  name: string;
+  totalMembers: number;
+  engagementRate: number;
+}
+
+interface DemographicData {
+  ageGroup: string;
+  totalMembers: number;
+  engagementRate: number;
+}
+
+interface MemberAnalytics {
+  attendanceRate: number;
+  totalAttended: number;
+  totalPossible: number;
+  byEventType: Array<{ type: string; count: number }>;
+  monthlyTrend: Array<{ month: string; count: number }>;
+}
+
+interface MemberHistoryItem {
+  date: string;
+  eventName: string;
+  eventType: string;
+  checkedInAt: string;
+  status: string;
+}
+
+const Reports: React.FC<{ user: User | null }> = ({ user }) => {
   const { settings, members, fetchAllMembers, attendanceTrends, zones, events, fetchInstances, theme } = useData();
   const [activeTab, setActiveTab] = useState<'overview' | 'member' | 'event'>('overview');
   const churchName = settings.church_name || 'Ecclesia';
@@ -24,16 +53,16 @@ const Reports: React.FC<{ user: any }> = ({ user }) => {
 
   // Dashboard state
   const [overviewStats, setOverviewStats] = useState<ReportOverview | null>(null);
-  const [zoneHealth, setZoneHealth] = useState<any[]>([]);
-  const [demographics, setDemographics] = useState<any[]>([]);
+  const [zoneHealth, setZoneHealth] = useState<ZoneHealth[]>([]);
+  const [demographics, setDemographics] = useState<DemographicData[]>([]);
   const [loadingOverview, setLoadingOverview] = useState(true);
 
   // Member Report state
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-  const [memberAnalytics, setMemberAnalytics] = useState<any>(null);
-  const [memberHistory, setMemberHistory] = useState<any[]>([]);
+  const [memberAnalytics, setMemberAnalytics] = useState<MemberAnalytics | null>(null);
+  const [memberHistory, setMemberHistory] = useState<MemberHistoryItem[]>([]);
   const [loadingMemberData, setLoadingMemberData] = useState(false);
 
   // Event Report state
@@ -72,7 +101,7 @@ const Reports: React.FC<{ user: any }> = ({ user }) => {
 
   // Pre-load all members for searchable dropdown
   useEffect(() => {
-    if (activeTab === 'member' && allMembers.length === 0) {
+    if ((activeTab === 'member' || activeTab === 'event') && allMembers.length === 0) {
       fetchAllMembers().then(setAllMembers);
     }
   }, [activeTab, allMembers.length, fetchAllMembers]);
@@ -118,12 +147,42 @@ const Reports: React.FC<{ user: any }> = ({ user }) => {
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            setEventAttendanceRecords(data.data);
+            const presentRecords = data.data as AttendanceRecord[];
+            const event = events.find(e => e.id === selectedReportEventId);
+            
+            // If we have all members, we can calculate absent ones
+            if (allMembers.length > 0) {
+              const eligibleMembers = allMembers.filter(m => 
+                m.status === 'Active' && (!event?.zoneId || m.zoneId === event.zoneId)
+              );
+              
+              const presentMemberIds = new Set(presentRecords.map(r => r.memberId).filter(Boolean));
+              
+              const absentRecords: AttendanceRecord[] = eligibleMembers
+                .filter(m => !presentMemberIds.has(m.id))
+                .map(m => ({
+                  id: `absent-${m.id}`,
+                  instanceId: selectedReportInstanceId,
+                  memberId: m.id,
+                  status: 'Absent',
+                  checkedInAt: '',
+                  firstName: m.firstName,
+                  lastName: m.lastName,
+                  avatarUrl: m.avatarUrl,
+                  email: m.email,
+                  phone: m.phone,
+                  memberStatus: m.status
+                }));
+                
+              setEventAttendanceRecords([...presentRecords, ...absentRecords]);
+            } else {
+              setEventAttendanceRecords(presentRecords);
+            }
           }
         })
         .finally(() => setLoadingEventAttendance(false));
     }
-  }, [activeTab, selectedReportInstanceId]);
+  }, [activeTab, selectedReportInstanceId, allMembers, events, selectedReportEventId]);
 
   const filteredMembers = useMemo(() => {
     if (!searchQuery) return [];
@@ -136,6 +195,20 @@ const Reports: React.FC<{ user: any }> = ({ user }) => {
       )
       .slice(0, 10);
   }, [searchQuery, allMembers]);
+
+  const filteredEventAttendance = useMemo(() => {
+    return eventAttendanceRecords
+      .filter(r => {
+        const matchesTab = eventReportSubTab === 'all' || r.status.toLowerCase() === eventReportSubTab;
+        const q = eventSearchQuery.toLowerCase();
+        const matchesSearch = !q || 
+          (r.firstName || '').toLowerCase().includes(q) || 
+          (r.lastName || '').toLowerCase().includes(q) || 
+          (r.phone || '').includes(q);
+        return matchesTab && matchesSearch;
+      })
+      .sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+  }, [eventAttendanceRecords, eventReportSubTab, eventSearchQuery]);
 
   const handlePrint = () => {
     if (!selectedMember || !memberAnalytics) return;
@@ -578,7 +651,7 @@ const Reports: React.FC<{ user: any }> = ({ user }) => {
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
                       <div className="text-sm font-bold text-slate-500 mb-4 dark:text-slate-400">By Event Type</div>
                       <div className="space-y-4">
-                        {memberAnalytics.byEventType?.map((et: any) => (
+                        {memberAnalytics.byEventType?.map((et) => (
                           <div key={et.type}>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="font-semibold text-slate-700 dark:text-slate-300">{et.type}</span>
@@ -756,6 +829,23 @@ const Reports: React.FC<{ user: any }> = ({ user }) => {
                 </div>
               </div>
 
+              {/* Search Bar */}
+              <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 dark:border-slate-800">
+                <div className="relative w-full sm:w-96">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    value={eventSearchQuery}
+                    onChange={(e) => setEventSearchQuery(e.target.value)}
+                    placeholder="Search by name or phone..."
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                  />
+                </div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  Showing {filteredEventAttendance.length} Members
+                </div>
+              </div>
+
               {loadingEventAttendance ? (
                 <div className="p-10 text-center text-slate-400">Loading attendance...</div>
               ) : (
@@ -771,10 +861,8 @@ const Reports: React.FC<{ user: any }> = ({ user }) => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {eventAttendanceRecords
-                        .filter(r => eventReportSubTab === 'all' || r.status.toLowerCase() === eventReportSubTab)
-                        .map((record) => {
-                        const memberFull = members.find(m => m.id === record.memberId);
+                      {filteredEventAttendance.map((record) => {
+                        const memberFull = (allMembers.length > 0 ? allMembers : members).find(m => m.id === record.memberId);
                         const zoneName = memberFull?.zoneId ? zones.find(z => z.id === memberFull.zoneId)?.name : 'Unassigned';
                         return (
                           <tr 
@@ -813,9 +901,14 @@ const Reports: React.FC<{ user: any }> = ({ user }) => {
                           </tr>
                         );
                       })}
-                      {eventAttendanceRecords.filter(r => eventReportSubTab === 'all' || r.status.toLowerCase() === eventReportSubTab).length === 0 && (
+                      {filteredEventAttendance.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="p-8 text-center text-slate-400">No records found for current filter.</td>
+                          <td colSpan={5} className="p-12 text-center text-slate-400">
+                            <div className="flex flex-col items-center gap-2">
+                              <Search size={32} className="opacity-20" />
+                              <p>No members found matching your search or filter.</p>
+                            </div>
+                          </td>
                         </tr>
                       )}
                     </tbody>
