@@ -19,6 +19,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isCollapsed, toggleSidebar,
   const churchName = settings.church_name || 'Ecclesia';
   const churchLogo = settings.church_logo || '';
   const isAdmin = user.role === 'admin';
+  const hasPermission = (module: string, action: 'read' | 'create' | 'edit' | 'delete' = 'read') => {
+    if (isAdmin) return true;
+    return user.permissions?.[module]?.[action] === true;
+  };
+
   const displayName = user.name || user.email;
   const initials = displayName
     .split(' ')
@@ -79,7 +84,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isCollapsed, toggleSidebar,
             </div>
         )}
         
-        {isAdmin ? (
+        {hasPermission('dashboard') ? (
           <NavLink to="/" className={navClasses}>
             <LayoutDashboard size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />
             <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Dashboard</span>
@@ -101,37 +106,43 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isCollapsed, toggleSidebar,
           </NavLink>
         )}
 
-        <NavLink to="/calendar" className={navClasses}>
-          <Calendar size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:-rotate-3" />
-          <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Calendar</span>
-           {isCollapsed && (
-            <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
-                Calendar
-            </div>
-          )}
-        </NavLink>
+        {hasPermission('events') && (
+          <NavLink to="/calendar" className={navClasses}>
+            <Calendar size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:-rotate-3" />
+            <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Calendar</span>
+             {isCollapsed && (
+              <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
+                  Calendar
+              </div>
+            )}
+          </NavLink>
+        )}
 
-        <NavLink to="/celebrations" className={navClasses}>
-          <Gift size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />
-          <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Celebrations</span>
-           {isCollapsed && (
-            <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
-                Celebrations
-            </div>
-          )}
-        </NavLink>
+        {hasPermission('members') && (
+          <NavLink to="/celebrations" className={navClasses}>
+            <Gift size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />
+            <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Celebrations</span>
+             {isCollapsed && (
+              <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
+                  Celebrations
+              </div>
+            )}
+          </NavLink>
+        )}
 
-        <NavLink to="/members" className={navClasses}>
-          <Users size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:-rotate-3" />
-          <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Members</span>
-           {isCollapsed && (
-            <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
-                Members
-            </div>
-          )}
-        </NavLink>
+        {hasPermission('members') && (
+          <NavLink to="/members" className={navClasses}>
+            <Users size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:-rotate-3" />
+            <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Members</span>
+             {isCollapsed && (
+              <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
+                  Members
+              </div>
+            )}
+          </NavLink>
+        )}
 
-        {isAdmin && (
+        {hasPermission('zones') && (
           <NavLink to="/zones" className={navClasses}>
             <Map size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />
             <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Zones</span>
@@ -143,27 +154,31 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isCollapsed, toggleSidebar,
           </NavLink>
         )}
 
-        <NavLink to="/attendance" className={navClasses}>
-          <QrCode size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:-rotate-3" />
-          <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Attendance</span>
-           {isCollapsed && (
-            <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
-                Attendance
-            </div>
-          )}
-        </NavLink>
+        {hasPermission('attendance') && (
+          <NavLink to="/attendance" className={navClasses}>
+            <QrCode size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:-rotate-3" />
+            <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Attendance</span>
+             {isCollapsed && (
+              <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
+                  Attendance
+              </div>
+            )}
+          </NavLink>
+        )}
 
-        <NavLink to="/messaging" className={navClasses}>
-          <MessageSquare size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />
-          <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Messaging</span>
-           {isCollapsed && (
-            <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
-                Messaging
-            </div>
-          )}
-        </NavLink>
+        {hasPermission('messaging') && (
+          <NavLink to="/messaging" className={navClasses}>
+            <MessageSquare size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />
+            <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Messaging</span>
+             {isCollapsed && (
+              <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
+                  Messaging
+              </div>
+            )}
+          </NavLink>
+        )}
 
-        {isAdmin && (
+        {hasPermission('reports') && (
           <NavLink to="/reports" className={navClasses}>
             <FileBarChart size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:-rotate-3" />
             <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Reports</span>
@@ -175,15 +190,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isCollapsed, toggleSidebar,
           </NavLink>
         )}
 
-        <NavLink to="/settings" className={navClasses}>
-          <SettingsIcon size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />
-          <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Settings</span>
-           {isCollapsed && (
-            <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
-                Settings
-            </div>
-          )}
-        </NavLink>
+        {hasPermission('settings') && (
+          <NavLink to="/settings" className={navClasses}>
+            <SettingsIcon size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />
+            <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Settings</span>
+             {isCollapsed && (
+              <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
+                  Settings
+              </div>
+            )}
+          </NavLink>
+        )}
       </nav>
 
       {/* Footer / User Profile */}

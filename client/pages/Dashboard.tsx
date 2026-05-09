@@ -81,10 +81,7 @@ const Dashboard: React.FC = () => {
     { name: 'Visitor', value: stats.visitorMembers },
   ];
 
-  const zoneDistributionData = zones.map(zone => ({
-    name: zone.name,
-    count: members.filter(m => m.zoneId === zone.id).length
-  }));
+  const zoneDistributionData = stats.zoneDistribution || [];
 
 
   const discoveryData = stats.discoveryDistribution || [];

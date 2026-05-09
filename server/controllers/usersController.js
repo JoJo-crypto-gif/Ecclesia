@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import UsersModel from '../models/usersModel.js';
 import MembersModel from '../models/membersModel.js';
+import RolesModel from '../models/rolesModel.js';
 
 const SALT_ROUNDS = 10;
 
@@ -135,6 +136,63 @@ const UsersController = {
       next(err);
     }
   },
+  async list(req, res, next) {
+    try {
+      const users = await UsersModel.getAll();
+      return res.json({ success: true, data: users.map(toSafeUser) });
+    } catch (err) {
+      next(err);
+    }
+  },
+  async create(req, res, next) {
+    try {
+      const { email, password, memberId, roleId, zoneId, name } = req.body;
+      if (!email || !password || !roleId) {
+        return res.status(400).json({
+          success: false,
+          error: { message: 'email, password, and roleId are required' },
+        });
+      }
+
+      const role = await RolesModel.getById(roleId);
+      if (!role) {
+        return res.status(404).json({ success: false, error: { message: 'Role not found' } });
+      }
+
+      const normalizedEmail = email.toLowerCase();
+      const existing = await UsersModel.findByEmail(normalizedEmail);
+      if (existing) {
+        return res.status(409).json({ success: false, error: { message: 'Email already in use' } });
+      }
+
+      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      
+      const user = await UsersModel.create({
+        name: name || null,
+        email: normalizedEmail,
+        passwordHash,
+        role: role.name, // Use the role name as the string role
+        roleId,
+        memberId: memberId || null,
+        zoneId: zoneId || null,
+      });
+
+      return res.status(201).json({ success: true, data: toSafeUser(user) });
+    } catch (err) {
+      next(err);
+    }
+  },
+  async delete(req, res, next) {
+    try {
+      const success = await UsersModel.delete(req.params.id);
+      if (!success) {
+        return res.status(404).json({ success: false, error: { message: 'User not found' } });
+      }
+      return res.json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 function toSafeUser(user) {
@@ -143,8 +201,13 @@ function toSafeUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    roleId: user.role_id,
+    roleName: user.role_name,
     memberId: user.member_id,
     zoneId: user.zone_id,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    createdAt: user.created_at
   };
 }
 

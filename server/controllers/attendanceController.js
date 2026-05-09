@@ -41,10 +41,10 @@ const AttendanceController = {
   async listByInstance(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
+      if (user?.role !== 'admin' && user?.zoneId) {
         const instance = await EventsService.getInstance(req.params.instanceId);
         if (!instance) return res.status(404).json({ success: false, error: { message: 'Instance not found' } });
-        if (!user.zoneId || instance.zoneId !== user.zoneId) {
+        if (instance.zoneId !== user.zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }
@@ -59,10 +59,11 @@ const AttendanceController = {
   async remove(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
+      const zoneId = (user?.role !== 'admin' && user?.zoneId) ? user.zoneId : undefined;
+      if (zoneId) {
         const record = await AttendanceService.getById(req.params.id);
         if (!record) return res.status(404).json({ success: false, error: { message: 'Record not found' } });
-        if (!user.zoneId || record.zone_id !== user.zoneId) {
+        if (record.zone_id !== zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }
@@ -78,10 +79,10 @@ const AttendanceController = {
   async removeByInstanceAndMember(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
+      if (user?.role !== 'admin' && user?.zoneId) {
         const instance = await EventsService.getInstance(req.params.instanceId);
         if (!instance) return res.status(404).json({ success: false, error: { message: 'Instance not found' } });
-        if (!user.zoneId || instance.zoneId !== user.zoneId) {
+        if (instance.zoneId !== user.zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }
@@ -100,10 +101,8 @@ const AttendanceController = {
   async getStats(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader' && !user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-      }
-      const stats = await AttendanceService.getStats(user?.role === 'zone_leader' ? user.zoneId : undefined);
+      const zoneId = (user?.role !== 'admin' && user?.zoneId) ? user.zoneId : undefined;
+      const stats = await AttendanceService.getStats(zoneId);
       res.json({ success: true, data: stats });
     } catch (err) {
       next(err);
@@ -114,7 +113,7 @@ const AttendanceController = {
   async getMemberHistory(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
+      if (user?.role !== 'admin' && user?.zoneId) {
         const member = await MembersService.getById(req.params.memberId);
         if (member.zoneId !== user.zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
@@ -132,10 +131,9 @@ const AttendanceController = {
     try {
       const { weeks } = req.query;
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
+      if (user?.role !== 'admin' && user?.zoneId) {
         const event = await EventsService.getById(req.params.eventId);
-        if (!event) return res.status(404).json({ success: false, error: { message: 'Event not found' } });
-        if (!user.zoneId || event.zoneId !== user.zoneId) {
+        if (!event || event.zoneId !== user.zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }
@@ -151,12 +149,10 @@ const AttendanceController = {
     try {
       const { months } = req.query;
       const user = req.session?.user;
-      if (user?.role === 'zone_leader' && !user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-      }
+      const zoneId = (user?.role !== 'admin' && user?.zoneId) ? user.zoneId : undefined;
       const trends = await AttendanceService.getGlobalTrends({ 
         months: months ? parseInt(months) : 7,
-        zoneId: user?.role === 'zone_leader' ? user.zoneId : undefined
+        zoneId
       });
       res.json({ success: true, data: trends });
     } catch (err) {
@@ -169,14 +165,12 @@ const AttendanceController = {
     try {
       const { period, eventId, limit } = req.query;
       const user = req.session?.user;
-      if (user?.role === 'zone_leader' && !user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-      }
+      const zoneId = (user?.role !== 'admin' && user?.zoneId) ? user.zoneId : undefined;
       const trends = await AttendanceService.getDynamicTrends({ 
         period: period || 'month', 
         eventId: eventId || null,
         limit: limit ? parseInt(limit) : 12,
-        zoneId: user?.role === 'zone_leader' ? user.zoneId : undefined
+        zoneId
       });
       res.json({ success: true, data: trends });
     } catch (err) {
@@ -188,7 +182,7 @@ const AttendanceController = {
   async getMemberAnalytics(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
+      if (user?.role !== 'admin' && user?.zoneId) {
         const member = await MembersService.getById(req.params.memberId);
         if (member.zoneId !== user.zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
@@ -204,7 +198,9 @@ const AttendanceController = {
   // GET /api/attendance/zone-health
   async getZoneHealth(req, res, next) {
     try {
-      const data = await AttendanceService.getZoneHealth();
+      const user = req.session?.user;
+      const zoneId = (user?.role !== 'admin' && user?.zoneId) ? user.zoneId : undefined;
+      const data = await AttendanceService.getZoneHealth({ zoneId });
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -214,7 +210,9 @@ const AttendanceController = {
   // GET /api/attendance/demographics
   async getDemographicAttendance(req, res, next) {
     try {
-      const data = await AttendanceService.getDemographicAttendance();
+      const user = req.session?.user;
+      const zoneId = (user?.role !== 'admin' && user?.zoneId) ? user.zoneId : undefined;
+      const data = await AttendanceService.getDemographicAttendance({ zoneId });
       res.json({ success: true, data });
     } catch (err) {
       next(err);
@@ -224,7 +222,9 @@ const AttendanceController = {
   // GET /api/attendance/report-overview
   async getReportOverview(req, res, next) {
     try {
-      const data = await AttendanceService.getReportOverview();
+      const user = req.session?.user;
+      const zoneId = (user?.role !== 'admin' && user?.zoneId) ? user.zoneId : undefined;
+      const data = await AttendanceService.getReportOverview({ zoneId });
       res.json({ success: true, data });
     } catch (err) {
       next(err);

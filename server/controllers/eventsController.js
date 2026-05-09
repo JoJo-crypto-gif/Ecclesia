@@ -6,14 +6,12 @@ const EventsController = {
     try {
       const { type, isActive } = req.query;
       const user = req.session?.user;
-      if (user?.role === 'zone_leader' && !user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-      }
+      const isIsolated = user?.role !== 'admin' && user?.zoneId;
       const events = await EventsService.list({
         type,
         isActive: isActive !== undefined ? isActive === 'true' : undefined,
-        zoneId: user?.role === 'zone_leader' ? user.zoneId : undefined,
-        includeGlobal: user?.role === 'zone_leader',
+        zoneId: isIsolated ? user.zoneId : undefined,
+        includeGlobal: isIsolated,
       });
       res.json({ success: true, data: events });
     } catch (err) {
@@ -27,11 +25,10 @@ const EventsController = {
       const event = await EventsService.getById(req.params.id);
       if (!event) return res.status(404).json({ success: false, error: { message: 'Event not found' } });
       const user = req.session?.user;
-      if (user?.role === 'zone_leader' && !user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-      }
-      if (user?.role === 'zone_leader' && event.zoneId && event.zoneId !== user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+      if (user?.role !== 'admin' && user?.zoneId) {
+        if (event.zoneId && event.zoneId !== user.zoneId) {
+          return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+        }
       }
       res.json({ success: true, data: event });
     } catch (err) {
@@ -43,11 +40,8 @@ const EventsController = {
   async create(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader' && !user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-      }
       const payload = { ...req.body };
-      if (user?.role === 'zone_leader') {
+      if (user?.role !== 'admin' && user?.zoneId) {
         payload.zoneId = user.zoneId;
       }
       const event = await EventsService.create(payload);
@@ -61,16 +55,15 @@ const EventsController = {
   async update(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader' && !user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-      }
       const existing = await EventsService.getById(req.params.id);
       if (!existing) return res.status(404).json({ success: false, error: { message: 'Event not found' } });
-      if (user?.role === 'zone_leader' && existing.zoneId !== user.zoneId) {
+      
+      const isIsolated = user?.role !== 'admin' && user?.zoneId;
+      if (isIsolated && existing.zoneId !== user.zoneId) {
         return res.status(403).json({ success: false, error: { message: 'Access denied' } });
       }
       const payload = { ...req.body };
-      if (user?.role === 'zone_leader') {
+      if (isIsolated) {
         payload.zoneId = user.zoneId;
       }
       const event = await EventsService.update(req.params.id, payload);
@@ -85,12 +78,9 @@ const EventsController = {
   async delete(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader' && !user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-      }
       const existing = await EventsService.getById(req.params.id);
       if (!existing) return res.status(404).json({ success: false, error: { message: 'Event not found' } });
-      if (user?.role === 'zone_leader' && existing.zoneId !== user.zoneId) {
+      if (user?.role !== 'admin' && user?.zoneId && existing.zoneId !== user.zoneId) {
         return res.status(403).json({ success: false, error: { message: 'Access denied' } });
       }
       const result = await EventsService.delete(req.params.id);
@@ -108,13 +98,9 @@ const EventsController = {
     try {
       const { status, fromDate, toDate, limit } = req.query;
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
-        if (!user.zoneId) {
-          return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-        }
+      if (user?.role !== 'admin' && user?.zoneId) {
         const event = await EventsService.getById(req.params.id);
-        if (!event) return res.status(404).json({ success: false, error: { message: 'Event not found' } });
-        if (event.zoneId && event.zoneId !== user.zoneId) {
+        if (!event || (event.zoneId && event.zoneId !== user.zoneId)) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }
@@ -136,14 +122,12 @@ const EventsController = {
     try {
       const { fromDate, toDate } = req.query;
       const user = req.session?.user;
-      if (user?.role === 'zone_leader' && !user.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-      }
+      const isIsolated = user?.role !== 'admin' && user?.zoneId;
       const instances = await EventsService.listAllInstances({ 
         fromDate, 
         toDate, 
-        zoneId: user?.role === 'zone_leader' ? user.zoneId : undefined,
-        includeGlobal: user?.role === 'zone_leader'
+        zoneId: isIsolated ? user.zoneId : undefined,
+        includeGlobal: isIsolated
       });
       res.json({ success: true, data: instances });
     } catch (err) {
@@ -167,13 +151,9 @@ const EventsController = {
     try {
       const { weeks = 52 } = req.body;
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
-        if (!user.zoneId) {
-          return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-        }
+      if (user?.role !== 'admin' && user?.zoneId) {
         const event = await EventsService.getById(req.params.id);
-        if (!event) return res.status(404).json({ success: false, error: { message: 'Event not found' } });
-        if (event.zoneId !== user.zoneId) {
+        if (!event || event.zoneId !== user.zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }
@@ -189,13 +169,9 @@ const EventsController = {
     try {
       const { date, notes } = req.body;
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
-        if (!user.zoneId) {
-          return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-        }
+      if (user?.role !== 'admin' && user?.zoneId) {
         const event = await EventsService.getById(req.params.id);
-        if (!event) return res.status(404).json({ success: false, error: { message: 'Event not found' } });
-        if (event.zoneId !== user.zoneId) {
+        if (!event || event.zoneId !== user.zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }
@@ -211,13 +187,9 @@ const EventsController = {
   async updateInstance(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
-        if (!user.zoneId) {
-          return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-        }
+      if (user?.role !== 'admin' && user?.zoneId) {
         const instance = await EventsService.getInstance(req.params.instanceId);
-        if (!instance) return res.status(404).json({ success: false, error: { message: 'Instance not found' } });
-        if (instance.zoneId !== user.zoneId) {
+        if (!instance || instance.zoneId !== user.zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }
@@ -233,13 +205,9 @@ const EventsController = {
   async deleteInstance(req, res, next) {
     try {
       const user = req.session?.user;
-      if (user?.role === 'zone_leader') {
-        if (!user.zoneId) {
-          return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
-        }
+      if (user?.role !== 'admin' && user?.zoneId) {
         const instance = await EventsService.getInstance(req.params.instanceId);
-        if (!instance) return res.status(404).json({ success: false, error: { message: 'Instance not found' } });
-        if (instance.zoneId !== user.zoneId) {
+        if (!instance || instance.zoneId !== user.zoneId) {
           return res.status(403).json({ success: false, error: { message: 'Access denied' } });
         }
       }

@@ -77,6 +77,7 @@ export interface DashboardStats {
   activeMembersTrend?: number;
   avgAttendance?: number;
   discoveryDistribution?: { name: string; value: number }[];
+  zoneDistribution?: { name: string; count: number }[];
 }
 
 export interface PermissionSet {

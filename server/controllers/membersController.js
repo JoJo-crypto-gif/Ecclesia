@@ -96,10 +96,12 @@ const MembersController = {
     try {
       const { search, status, zoneId, isBaptized, gender, limit, offset } = req.query;
       const sessionUser = req.session?.user;
-      if (sessionUser?.role === 'zone_leader' && !sessionUser.zoneId) {
-        return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
+      if (sessionUser?.role !== 'admin' && sessionUser?.zoneId) {
+        // Enforce their zone ID
+        var effectiveZoneId = sessionUser.zoneId;
+      } else {
+        var effectiveZoneId = zoneId;
       }
-      const effectiveZoneId = sessionUser?.role === 'zone_leader' ? sessionUser.zoneId : zoneId;
 
       const result = await MembersService.list({
         search,

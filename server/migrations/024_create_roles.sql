@@ -42,7 +42,7 @@ VALUES (
     "members": {"read": true, "create": true, "edit": true, "delete": false},
     "attendance": {"read": true, "create": true, "edit": true, "delete": false},
     "events": {"read": true, "create": false, "edit": false, "delete": false},
-    "zones": {"read": true, "create": false, "edit": false, "delete": false},
+    "zones": {"read": false, "create": false, "edit": false, "delete": false},
     "reports": {"read": true, "create": false, "edit": false, "delete": false},
     "messaging": {"read": true, "create": true, "edit": false, "delete": false},
     "settings": {"read": true, "create": false, "edit": false, "delete": false}

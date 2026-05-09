@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { Zone, Member, MemberStatus } from '../types';
 import { Plus, Edit2, Trash2, MapPin, Clock, ChevronRight, Search, User, Mail, Phone, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import Modal from '../components/Modal';
 
 const Zones: React.FC = () => {
+  const { hasPermission } = useAuth();
   const { zones, members, addZone, updateZone, deleteZone, fetchAllMembers } = useData();
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -198,13 +200,15 @@ const Zones: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight dark:text-white">Zones</h1>
           <p className="text-slate-500 mt-1 dark:text-slate-400">Organize your congregation into geographic or functional families.</p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:shadow-none"
-        >
-          <Plus size={20} />
-          Create Zone
-        </button>
+        {hasPermission('zones', 'create') && (
+          <button 
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:shadow-none"
+          >
+            <Plus size={20} />
+            Create Zone
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -232,12 +236,16 @@ const Zones: React.FC = () => {
                     <MapPin size={24} className="relative z-10" />
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 duration-200">
-                    <button onClick={(e) => handleEditZone(e, zone)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors dark:hover:bg-slate-800 dark:hover:text-indigo-400">
-                      <Edit2 size={18} />
-                    </button>
-                    <button onClick={(e) => handleDeleteZone(e, zone.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors dark:hover:bg-slate-800 dark:hover:text-red-400">
-                      <Trash2 size={18} />
-                    </button>
+                    {hasPermission('zones', 'edit') && (
+                      <button onClick={(e) => handleEditZone(e, zone)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors dark:hover:bg-slate-800 dark:hover:text-indigo-400">
+                        <Edit2 size={18} />
+                      </button>
+                    )}
+                    {hasPermission('zones', 'delete') && (
+                      <button onClick={(e) => handleDeleteZone(e, zone.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors dark:hover:bg-slate-800 dark:hover:text-red-400">
+                        <Trash2 size={18} />
+                      </button>
+                    )}
                   </div>
                 </div>
                 
@@ -293,16 +301,18 @@ const Zones: React.FC = () => {
         })}
         
         {/* Add New Zone Card (Empty State) */}
-        <button 
-            onClick={() => handleOpenModal()}
-            className="border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center p-8 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group h-full min-h-[300px] dark:border-slate-700 dark:hover:border-indigo-500 dark:hover:bg-indigo-500/10"
-        >
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-indigo-500 group-hover:shadow-md transition-all mb-4 dark:bg-slate-800 dark:group-hover:bg-slate-700 dark:group-hover:text-indigo-400">
-                <Plus size={32} />
-            </div>
-            <span className="font-bold text-slate-600 group-hover:text-indigo-600 dark:text-slate-400 dark:group-hover:text-indigo-400">Add New Zone</span>
-            <span className="text-sm text-slate-400 mt-1 dark:text-slate-500">Expand your reach</span>
-        </button>
+        {hasPermission('zones', 'create') && (
+          <button 
+              onClick={() => handleOpenModal()}
+              className="border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center p-8 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group h-full min-h-[300px] dark:border-slate-700 dark:hover:border-indigo-500 dark:hover:bg-indigo-500/10"
+          >
+              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-indigo-500 group-hover:shadow-md transition-all mb-4 dark:bg-slate-800 dark:group-hover:bg-slate-700 dark:group-hover:text-indigo-400">
+                  <Plus size={32} />
+              </div>
+              <span className="font-bold text-slate-600 group-hover:text-indigo-600 dark:text-slate-400 dark:group-hover:text-indigo-400">Add New Zone</span>
+              <span className="text-sm text-slate-400 mt-1 dark:text-slate-500">Expand your reach</span>
+          </button>
+        )}
       </div>
 
       {/* --- CREATE / EDIT MODAL --- */}

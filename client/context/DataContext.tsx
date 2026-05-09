@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 import { Member, Zone, DashboardStats, MemberStatus, ChurchEvent, EventInstance, AttendanceRecord, Message, ManualMessagePayload } from '../types';
 
 // Pagination Interface
@@ -84,6 +85,7 @@ const apiFetch = (input: RequestInfo, init: RequestInit = {}) => {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { hasPermission } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
@@ -93,7 +95,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     inactiveMembers: 0,
     visitorMembers: 0,
     unbaptizedMembers: 0,
-    recentGrowth: 5.2 
+    recentGrowth: 5.2,
+    discoveryDistribution: [],
+    zoneDistribution: []
   });
   
   // Pagination & Filter State
@@ -146,6 +150,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             visitorMembers: membersData.data.visitor,
             unbaptizedMembers: membersData.data.unbaptized,
             discoveryDistribution: membersData.data.discoveryDistribution,
+            zoneDistribution: membersData.data.zoneDistribution || [],
             totalMembersTrend: membersData.data.totalMembersTrend,
             activeMembersTrend: membersData.data.activeMembersTrend,
           };
@@ -602,6 +607,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // --- Messaging & Settings ---
   const fetchMessages = useCallback(async () => {
+    if (!hasPermission('messaging', 'read')) return;
     try {
       const res = await apiFetch(`${API_BASE}/messaging/history`);
       if (res.ok) {

@@ -19,13 +19,13 @@ router.post('/check-in', publicCheckInRateLimiter, AttendanceController.checkIn)
 router.use(requireAuth);
 
 // ─── Stats & Trends ──────────────────────────────────────
-router.get('/stats', checkPermission('attendance', 'read'), AttendanceController.getStats);
+router.get('/stats', checkPermission('dashboard', 'read'), AttendanceController.getStats);
 router.get('/global-trends', checkPermission('reports', 'read'), AttendanceController.getGlobalTrends);
 router.get('/report-overview', checkPermission('reports', 'read'), AttendanceController.getReportOverview);
-router.get('/zone-health', checkPermission('reports', 'read'), AttendanceController.getZoneHealth);
-router.get('/demographics', checkPermission('reports', 'read'), AttendanceController.getDemographicAttendance);
-router.get('/trends', checkPermission('attendance', 'read'), AttendanceController.getDynamicTrends); // New dynamic endpoint
-router.get('/trends/:eventId', checkPermission('attendance', 'read'), AttendanceController.getTrends);
+router.get('/zone-health', checkPermission('dashboard', 'read'), AttendanceController.getZoneHealth);
+router.get('/demographics', checkPermission('dashboard', 'read'), AttendanceController.getDemographicAttendance);
+router.get('/trends', checkPermission('dashboard', 'read'), AttendanceController.getDynamicTrends);
+router.get('/trends/:eventId', checkPermission('dashboard', 'read'), AttendanceController.getTrends);
 
 // ─── Instance attendance ─────────────────────────────────
 router.get('/instance/:instanceId', checkPermission('attendance', 'read'), AttendanceController.listByInstance);

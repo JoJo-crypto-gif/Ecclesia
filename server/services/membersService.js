@@ -169,7 +169,7 @@ const MembersService = {
    * Get members with birthdays in a specific month.
    */
   async getBirthdaysByMonth(monthIndex, userRole, userZoneId) {
-    const filterZone = userRole === 'zone_leader' ? userZoneId : null;
+    const filterZone = (userRole !== 'admin' && userZoneId) ? userZoneId : null;
     const rows = await MembersModel.getBirthdaysByMonth(monthIndex, filterZone);
     return rows.map(r => ({
       id: r.id,
@@ -184,7 +184,7 @@ const MembersService = {
    * Get celebration members by filter type and date window.
    */
   async getCelebrations({ type, period, window, referenceDate, userRole, userZoneId }) {
-    const filterZone = userRole === 'zone_leader' ? userZoneId : null;
+    const filterZone = (userRole !== 'admin' && userZoneId) ? userZoneId : null;
     const rows = await MembersModel.getCelebrationMembers(type, filterZone);
     const ref = referenceDate
       ? new Date(`${referenceDate}T00:00:00`)

@@ -26,6 +26,20 @@ const UsersModel = {
     return result.rows[0] || null;
   },
 
+  async getAll() {
+    const result = await query(`
+      SELECT 
+        u.id, u.name, u.email, u.role, u.member_id, u.zone_id, u.created_at, u.role_id,
+        r.name as role_name,
+        m.first_name, m.last_name
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      LEFT JOIN members m ON u.member_id = m.id
+      ORDER BY u.created_at DESC
+    `);
+    return result.rows;
+  },
+
   async create(data) {
     const { name, email, passwordHash, role, roleId, memberId, zoneId } = data;
     const result = await query(
@@ -71,6 +85,11 @@ const UsersModel = {
     );
 
     return result.rows[0] || null;
+  },
+
+  async delete(id) {
+    const result = await query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+    return result.rowCount > 0;
   },
 };
 

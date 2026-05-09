@@ -317,6 +317,15 @@ const MembersModel = {
       FROM members ${whereClause}
       GROUP BY discovery_source
     `, params);
+
+    // Get zone distribution
+    const zoneDistributionResult = await query(`
+      SELECT COALESCE(z.name, 'Unassigned') as name, COUNT(m.id)::int as count
+      FROM members m
+      LEFT JOIN zones z ON m.zone_id = z.id
+      ${whereClause.replace('WHERE', 'WHERE m.')}
+      GROUP BY z.name
+    `, params);
     
     const row = result.rows[0];
     const total = parseInt(row.total, 10);
@@ -352,6 +361,7 @@ const MembersModel = {
       totalMembersTrend,
       activeMembersTrend,
       discoveryDistribution: discoveryResult.rows,
+      zoneDistribution: zoneDistributionResult.rows,
     };
   },
 };

@@ -23,7 +23,8 @@ import { useLocation } from 'react-router-dom';
 // Protected Route Wrapper
 interface ProtectedLayoutProps {
   children: React.ReactNode;
-  roles?: Array<User['role']>;
+  module?: string;
+  action?: 'read' | 'create' | 'edit' | 'delete';
   user: User | null;
   authLoading: boolean;
   onLogout: () => Promise<void>;
@@ -32,8 +33,10 @@ interface ProtectedLayoutProps {
 }
 
 const ProtectedLayout: React.FC<ProtectedLayoutProps & { isMobileMenuOpen: boolean; setIsMobileMenuOpen: (o: boolean) => void }> = ({ 
-  children, roles, user, authLoading, onLogout, isSidebarCollapsed, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen
+  children, module, action = 'read', user, authLoading, onLogout, isSidebarCollapsed, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen
 }) => {
+  const { hasPermission } = useAuth();
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-500">
@@ -42,8 +45,8 @@ const ProtectedLayout: React.FC<ProtectedLayoutProps & { isMobileMenuOpen: boole
     );
   }
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && roles.length > 0 && !roles.includes(user.role)) {
-    return <Navigate to={user.role === 'zone_leader' ? '/zone-dashboard' : '/'} replace />;
+  if (module && !hasPermission(module, action)) {
+    return <Navigate to={hasPermission('dashboard', 'read') ? '/' : '/login'} replace />;
   }
   
   return (
@@ -138,6 +141,7 @@ const AppInner: React.FC = () => {
         {/* Protected Routes */}
         <Route path="/" element={
           <ProtectedLayout 
+            module="dashboard"
             user={user} 
             authLoading={authLoading} 
             onLogout={handleLogout}
@@ -151,14 +155,15 @@ const AppInner: React.FC = () => {
         } />
 
         <Route path="/zone-dashboard" element={
-          <ProtectedLayout roles={['admin', 'zone_leader']} user={user} authLoading={authLoading} onLogout={handleLogout} isSidebarCollapsed={isSidebarCollapsed} toggleSidebar={toggleSidebar} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}>
+          <ProtectedLayout module="dashboard" user={user} authLoading={authLoading} onLogout={handleLogout} isSidebarCollapsed={isSidebarCollapsed} toggleSidebar={toggleSidebar} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}>
             <ZoneDashboard user={user} />
           </ProtectedLayout>
         } />
 
         <Route path="/calendar" element={
           <ProtectedLayout 
-            roles={['admin', 'zone_leader']} 
+            module="events"
+
             user={user} 
             authLoading={authLoading} 
             onLogout={handleLogout} 
@@ -173,7 +178,7 @@ const AppInner: React.FC = () => {
 
         <Route path="/celebrations" element={
           <ProtectedLayout
-            roles={['admin', 'zone_leader']}
+            module="members"
             user={user}
             authLoading={authLoading}
             onLogout={handleLogout}
@@ -188,7 +193,8 @@ const AppInner: React.FC = () => {
         
         <Route path="/members" element={
           <ProtectedLayout 
-            roles={['admin', 'zone_leader']} 
+            module="members"
+
             user={user} 
             authLoading={authLoading} 
             onLogout={handleLogout} 
@@ -203,7 +209,8 @@ const AppInner: React.FC = () => {
 
         <Route path="/zones" element={
           <ProtectedLayout 
-            roles={['admin']} 
+            module="zones"
+
             user={user} 
             authLoading={authLoading} 
             onLogout={handleLogout} 
@@ -218,7 +225,8 @@ const AppInner: React.FC = () => {
 
         <Route path="/attendance" element={
           <ProtectedLayout 
-            roles={['admin', 'zone_leader']} 
+            module="attendance"
+
             user={user} 
             authLoading={authLoading} 
             onLogout={handleLogout} 
@@ -233,7 +241,8 @@ const AppInner: React.FC = () => {
 
         <Route path="/messaging" element={
           <ProtectedLayout 
-            roles={['admin', 'zone_leader']} 
+            module="messaging"
+
             user={user} 
             authLoading={authLoading} 
             onLogout={handleLogout} 
@@ -248,7 +257,8 @@ const AppInner: React.FC = () => {
 
         <Route path="/reports" element={
           <ProtectedLayout 
-            roles={['admin']} 
+            module="reports"
+
             user={user} 
             authLoading={authLoading} 
             onLogout={handleLogout} 
@@ -263,7 +273,8 @@ const AppInner: React.FC = () => {
 
         <Route path="/settings" element={
           <ProtectedLayout 
-            roles={['admin', 'zone_leader']} 
+            module="settings"
+
             user={user} 
             authLoading={authLoading} 
             onLogout={handleLogout} 

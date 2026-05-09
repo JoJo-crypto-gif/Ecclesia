@@ -6,7 +6,7 @@ export const sendManualMessage = async (req, res) => {
   try {
     const { message, channel, audienceType, filters, memberId, memberIds, recipientLabel: customRecipientLabel } = req.body;
     const sessionUser = req.session?.user;
-    const isZoneLeader = sessionUser?.role === 'zone_leader';
+    const isIsolated = sessionUser?.role !== 'admin' && sessionUser?.zoneId;
     const zoneId = sessionUser?.zoneId;
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
@@ -17,7 +17,7 @@ export const sendManualMessage = async (req, res) => {
       return res.status(400).json({ success: false, error: { message: 'Unsupported channel.' } });
     }
 
-    if (isZoneLeader && !zoneId) {
+    if (isIsolated && !zoneId) {
       return res.status(403).json({ success: false, error: { message: 'No zone assigned.' } });
     }
 
@@ -30,9 +30,9 @@ export const sendManualMessage = async (req, res) => {
       const queryFilters = { ...filters, limit: 10000 };
       
       // Enforce zone leader permissions
-      if (isZoneLeader) {
+      if (isIsolated) {
         if (filters.zoneId && filters.zoneId !== zoneId) {
-           return res.status(403).json({ success: false, error: { message: 'Zone leaders can only message their own zone.' } });
+           return res.status(403).json({ success: false, error: { message: 'You can only message your own zone.' } });
         }
         queryFilters.zoneId = zoneId;
       }
@@ -57,8 +57,8 @@ export const sendManualMessage = async (req, res) => {
         if (!member) {
           return res.status(404).json({ success: false, error: { message: 'Member not found.' } });
         }
-        if (isZoneLeader && member.zone_id !== zoneId) {
-          return res.status(403).json({ success: false, error: { message: 'Zone leaders can only message members in their own zone.' } });
+        if (isIsolated && member.zone_id !== zoneId) {
+          return res.status(403).json({ success: false, error: { message: 'You can only message members in your own zone.' } });
         }
         recipientMembers.push(member);
       }
@@ -124,7 +124,7 @@ export const getMessageHistory = async (req, res) => {
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const offset = (page - 1) * limit;
-    const senderUserId = sessionUser?.role === 'zone_leader' ? sessionUser.id : undefined;
+    const senderUserId = (sessionUser?.role !== 'admin' && sessionUser?.zoneId) ? sessionUser.id : undefined;
 
     const result = await MessagesModel.findAll({ limit, offset, senderUserId });
     const totalPages = Math.max(1, Math.ceil(result.total / limit));

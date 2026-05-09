@@ -386,7 +386,13 @@ const AttendanceModel = {
   },
 
   // ─── Zone Health Leaderboard ───────────────────────────
-  async getZoneHealth() {
+  async getZoneHealth({ zoneId } = {}) {
+    const params = [];
+    let whereClause = '';
+    if (zoneId) {
+      params.push(zoneId);
+      whereClause = 'WHERE z.id = $1';
+    }
     const result = await query(`
       WITH zone_stats AS (
         SELECT
@@ -401,6 +407,7 @@ const AttendanceModel = {
         LEFT JOIN members m ON m.zone_id = z.id
         LEFT JOIN attendance a ON a.member_id = m.id
           AND a.checked_in_at >= CURRENT_DATE - INTERVAL '3 months'
+        ${whereClause}
         GROUP BY z.id, z.name
       )
       SELECT *,
@@ -410,12 +417,18 @@ const AttendanceModel = {
         END AS engagement_rate
       FROM zone_stats
       ORDER BY engagement_rate DESC
-    `);
+    `, params);
     return result.rows;
   },
 
   // ─── Demographics vs Attendance ────────────────────────
-  async getDemographicAttendance() {
+  async getDemographicAttendance({ zoneId } = {}) {
+    const params = [];
+    let whereClause = "WHERE m.status = 'Active'";
+    if (zoneId) {
+      params.push(zoneId);
+      whereClause += " AND m.zone_id = $1";
+    }
     const result = await query(`
       WITH member_ages AS (
         SELECT
@@ -430,7 +443,7 @@ const AttendanceModel = {
             WHEN EXTRACT(YEAR FROM AGE(m.dob)) > 60 THEN '60+'
           END AS age_group
         FROM members m
-        WHERE m.status = 'Active'
+        ${whereClause}
       ),
       attendance_counts AS (
         SELECT
@@ -459,32 +472,47 @@ const AttendanceModel = {
           WHEN '60+' THEN 6
           ELSE 7
         END
-    `);
+    `, params);
     return result.rows;
   },
 
   // ─── Report Overview Stats ─────────────────────────────
-  async getReportOverview() {
+  async getReportOverview({ zoneId } = {}) {
+    const params = [];
+    let membersWhere = "WHERE status = 'Active'";
+    let eventsWhere = "WHERE ei.status = 'completed'";
+    let checkinsWhere = "";
+    let eventJoin = "";
+    
+    if (zoneId) {
+      params.push(zoneId);
+      membersWhere += " AND zone_id = $1";
+      eventsWhere += " AND e.zone_id = $1";
+      checkinsWhere = "JOIN event_instances ei ON a.instance_id = ei.id JOIN events e ON ei.event_id = e.id WHERE e.zone_id = $1";
+      eventJoin = "JOIN events e ON e.id = ei.event_id";
+    }
+
     const result = await query(`
       SELECT
-        (SELECT COUNT(*)::int FROM members WHERE status = 'Active') AS total_active_members,
-        (SELECT COUNT(*)::int FROM event_instances WHERE status = 'completed') AS total_completed_events,
-        (SELECT COUNT(*)::int FROM attendance) AS total_checkins,
+        (SELECT COUNT(*)::int FROM members ${membersWhere}) AS total_active_members,
+        (SELECT COUNT(*)::int FROM event_instances ei ${zoneId ? eventJoin : ''} ${eventsWhere}) AS total_completed_events,
+        (SELECT COUNT(*)::int FROM attendance a ${checkinsWhere}) AS total_checkins,
         COALESCE(
           (
             SELECT
               CASE
                 WHEN COUNT(DISTINCT ei.id) = 0 THEN 0
-                WHEN (SELECT COUNT(*) FROM members WHERE status = 'Active') = 0 THEN 0
+                WHEN (SELECT COUNT(*) FROM members ${membersWhere}) = 0 THEN 0
                 ELSE
-                  ROUND((COUNT(a.id)::numeric / COUNT(DISTINCT ei.id)::numeric) / (SELECT COUNT(*) FROM members WHERE status = 'Active')::numeric * 100)
+                  ROUND((COUNT(a.id)::numeric / COUNT(DISTINCT ei.id)::numeric) / (SELECT COUNT(*) FROM members ${membersWhere})::numeric * 100)
               END
             FROM event_instances ei
+            ${zoneId ? eventJoin : ''}
             LEFT JOIN attendance a ON a.instance_id = ei.id
-            WHERE ei.status = 'completed' AND ei.date >= CURRENT_DATE - INTERVAL '30 days'
+            WHERE ei.status = 'completed' AND ei.date >= CURRENT_DATE - INTERVAL '30 days' ${zoneId ? 'AND e.zone_id = $1' : ''}
           ), 0
         )::int AS avg_attendance_percentage
-    `);
+    `, params);
     return result.rows[0];
   },
 };

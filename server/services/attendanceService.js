@@ -217,8 +217,8 @@ const AttendanceService = {
     };
   },
 
-  async getZoneHealth() {
-    const rows = await AttendanceModel.getZoneHealth();
+  async getZoneHealth(options = {}) {
+    const rows = await AttendanceModel.getZoneHealth(options);
     return rows.map(r => ({
       id: r.id,
       name: r.name,
@@ -229,8 +229,8 @@ const AttendanceService = {
     }));
   },
 
-  async getDemographicAttendance() {
-    const rows = await AttendanceModel.getDemographicAttendance();
+  async getDemographicAttendance(options = {}) {
+    const rows = await AttendanceModel.getDemographicAttendance(options);
     return rows.map(r => ({
       ageGroup: r.age_group,
       totalMembers: r.total_members,
@@ -240,8 +240,8 @@ const AttendanceService = {
     }));
   },
 
-  async getReportOverview() {
-    const row = await AttendanceModel.getReportOverview();
+  async getReportOverview(options = {}) {
+    const row = await AttendanceModel.getReportOverview(options);
     return {
       totalActiveMembers: parseInt(row.total_active_members || '0', 10),
       totalCompletedEvents: parseInt(row.total_completed_events || '0', 10),
