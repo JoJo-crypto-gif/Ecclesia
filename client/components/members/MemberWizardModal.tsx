@@ -123,26 +123,32 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
   const validateCurrentStep = (): boolean => {
     const newErrors: string[] = [];
     if (currentStep === 1) {
-      if (!formData.firstName || !formData.lastName) newErrors.push("First and last name are required.");
-      if (!formData.motherName || !formData.fatherName) newErrors.push("Mother and Father names are required.");
-      if (formData.email && !validateEmail(formData.email)) newErrors.push("Invalid email address.");
-      if (formData.phone && !validatePhone(formData.phone)) newErrors.push("Phone number must be exactly 10 digits.");
+      if (!formData.firstName || !formData.lastName) newErrors.push('First and last name are required.');
+      if (formData.email && !validateEmail(formData.email)) newErrors.push('Invalid email address.');
+      if (formData.phone && !validatePhone(formData.phone)) newErrors.push('Phone number must be exactly 10 digits.');
+    } else if (currentStep === 2) {
+      if (!formData.address) newErrors.push('Residential address is required.');
+      if (!formData.emergencyContact) newErrors.push('Emergency contact name is required.');
+      if (!formData.emergencyPhone || !validatePhone(formData.emergencyPhone)) newErrors.push('Emergency contact phone must be exactly 10 digits.');
+    } else if (currentStep === 3) {
+      if (!formData.maritalStatus) newErrors.push('Marital status is required.');
+      if (!formData.motherName || !formData.fatherName) newErrors.push('Mother and father names are required.');
+      if (formData.maritalStatus === 'Married') {
+        if (!formData.spouseName) newErrors.push('Spouse name is required when married.');
+        if (!formData.spousePhone || !validatePhone(formData.spousePhone)) newErrors.push('Spouse phone must be exactly 10 digits.');
+      }
       if (formData.children && formData.children.length > 0) {
         formData.children.forEach((child, i) => {
-          if (child.phone && !validatePhone(child.phone)) {
-            newErrors.push(`Child ${i + 1} (${child.name || 'unnamed'}): Phone number must be exactly 10 digits.`);
-          }
+          if (!child.name) newErrors.push(`Child ${i+1} name is required.`);
+          if (!child.dob) newErrors.push(`Child ${i+1} Date of Birth is required.`);
+          if (child.phone && !validatePhone(child.phone)) newErrors.push(`Child ${i+1} phone must be exactly 10 digits.`);
         });
+      } else if (currentStep === 4) {
+      if (!formData.status) newErrors.push('Member status is required.');
+      if (formData.status === MemberStatus.ExMember && !formData.exMemberReason) {
+        newErrors.push('Please specify a reason for the member leaving.');
       }
-    } else if (currentStep === 2) {
-      if (!formData.address) newErrors.push("Residential address is required.");
-      if (!formData.maritalStatus) newErrors.push("Marital status is required.");
-      if (formData.maritalStatus === 'Married') {
-        if (!formData.spouseName) newErrors.push("Spouse name is required when married.");
-        if (!formData.spousePhone || !validatePhone(formData.spousePhone)) newErrors.push("Spouse phone number must be exactly 10 digits.");
-      }
-      if (!formData.emergencyContact) newErrors.push("Emergency contact name is required.");
-      if (!formData.emergencyPhone || !validatePhone(formData.emergencyPhone)) newErrors.push("Emergency contact phone must be exactly 10 digits.");
+    }
     }
     setErrors(newErrors);
     return newErrors.length === 0;
@@ -152,7 +158,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
     if (!validateCurrentStep()) return;
     setErrors([]);
     setDirection('right');
-    setCurrentStep(prev => Math.min(prev + 1, 3));
+    setCurrentStep(prev => Math.min(prev + 1, 5));
   };
 
   const handlePrevStep = () => {
@@ -245,28 +251,34 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
     });
   };
 
-  const renderStepIndicator = () => (
-    <div className="flex items-center justify-center mb-8">
-      {[1, 2, 3].map((step) => (
-        <div key={step} className="flex items-center">
-          <div 
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-              currentStep >= step 
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-110 dark:bg-indigo-500' 
-                : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
-            }`}
-          >
-            {step}
+  const renderStepIndicator = () => {
+    const STEP_LABELS = ['Identity', 'Contact', 'Family', 'Church', 'Profile'];
+    return (
+      <div className="flex items-center justify-center mb-8 gap-1">
+        {[1, 2, 3, 4, 5].map((step) => (
+          <div key={step} className="flex items-center">
+            <div className="flex flex-col items-center gap-1">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                currentStep > step ? 'bg-indigo-600 text-white dark:bg-indigo-500' :
+                currentStep === step ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-110 dark:bg-indigo-500' :
+                'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
+              }`}>
+                {currentStep > step ? <CheckCircle2 size={14} /> : step}
+              </div>
+              <span className={`text-[9px] font-bold uppercase tracking-wider hidden sm:block ${currentStep === step ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-600'}`}>
+                {STEP_LABELS[step - 1]}
+              </span>
+            </div>
+            {step < 5 && (
+              <div className={`w-8 h-0.5 rounded-full mx-1 mb-4 transition-all duration-300 ${
+                currentStep > step ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-slate-100 dark:bg-slate-800'
+              }`} />
+            )}
           </div>
-          {step < 3 && (
-            <div className={`w-12 h-1 rounded-full mx-2 transition-all duration-300 ${
-              currentStep > step ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-slate-100 dark:bg-slate-800'
-            }`} />
-          )}
-        </div>
-      ))}
-    </div>
-  );
+        ))}
+      </div>
+    );
+  };
 
   return (
     <Modal 
@@ -490,9 +502,126 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                 </select>
                             </div>
                         </div>
+                    </div>
+                )}
 
-                        {/* Marital Status (Moved to Step 1) */}
-                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                {/* STEP 2: CONTACT */}
+                {currentStep === 2 && (
+                    <div className={`space-y-6 ${direction === 'right' ? 'slide-in-right' : 'slide-in-left'}`}>
+                        <div className="text-center mb-6">
+                             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Contact Details</h3>
+                             <p className="text-slate-500 text-sm dark:text-slate-400">How can we reach this member?</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Email Address</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-4 top-3.5 text-slate-400" size={18} />
+                                    <input 
+                                        type="email" 
+                                        value={formData.email || ''} 
+                                        onChange={e => {
+                                            setFormData({...formData, email: e.target.value});
+                                            setTouched({...touched, email: true});
+                                        }}
+                                        onBlur={() => setTouched({...touched, email: true})}
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                        placeholder="jane.doe@example.com"
+                                    />
+                                    {touched.email && formData.email && !validateEmail(formData.email) && (
+                                        <span className="text-[10px] text-rose-500 absolute -bottom-4 left-4">Invalid email address</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Phone Number <span className="text-rose-500">*</span></label>
+                                <div className="relative">
+                                    <Phone className="absolute left-4 top-3.5 text-slate-400" size={18} />
+                                    <input 
+                                        type="tel" 
+                                        maxLength={10}
+                                        value={formData.phone || ''} 
+                                        onChange={e => {
+                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            setFormData({...formData, phone: val});
+                                            setTouched({...touched, phone: true});
+                                        }}
+                                        onBlur={() => setTouched({...touched, phone: true})}
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                        placeholder="10 digits"
+                                    />
+                                    {touched.phone && formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
+                                        <span className="text-[10px] text-rose-500 absolute -bottom-4 left-4">Must be exactly 10 digits</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Residential Address <span className="text-rose-500">*</span></label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-4 top-3.5 text-slate-400" size={18} />
+                                    <textarea 
+                                        value={formData.address || ''} 
+                                        onChange={e => setFormData({...formData, address: e.target.value})}
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all h-24 resize-none dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                        placeholder="Full address here..."
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <h4 className="text-sm font-bold text-slate-900 mb-3 dark:text-white flex items-center gap-2">
+                                    <AlertCircle size={16} className="text-rose-500" /> 
+                                    Emergency Contact
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Contact Name <span className="text-rose-500">*</span></label>
+                                        <input 
+                                            type="text" 
+                                            value={formData.emergencyContact || ''} 
+                                            onChange={e => setFormData({...formData, emergencyContact: e.target.value})}
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                            placeholder="Name"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Contact Phone <span className="text-rose-500">*</span></label>
+                                        <div className="relative">
+                                            <input 
+                                                type="tel" 
+                                                maxLength={10}
+                                                value={formData.emergencyPhone || ''} 
+                                                onChange={e => {
+                                                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                                    setFormData({...formData, emergencyPhone: val});
+                                                    setTouched({...touched, emergencyPhone: true});
+                                                }}
+                                                onBlur={() => setTouched({...touched, emergencyPhone: true})}
+                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                                placeholder="10 digits"
+                                            />
+                                            {touched.emergencyPhone && formData.emergencyPhone && formData.emergencyPhone.length > 0 && formData.emergencyPhone.length < 10 && (
+                                                <span className="text-[10px] text-rose-500 absolute -bottom-4 left-2">Must be exactly 10 digits</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* STEP 3: FAMILY */}
+                {currentStep === 3 && (
+                    <div className={`space-y-6 ${direction === 'right' ? 'slide-in-right' : 'slide-in-left'}`}>
+                        <div className="text-center mb-6">
+                             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Family Details</h3>
+                             <p className="text-slate-500 text-sm dark:text-slate-400">Marital status, parents &amp; children</p>
+                        </div>
+
+                        {/* Marital Status */}
+                        <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Marital Status <span className="text-rose-500">*</span></label>
                            <select
                                value={formData.maritalStatus || ''}
@@ -657,7 +786,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                     type="button"
                                     onClick={() => setFormData({
                                         ...formData,
-                                        children: [...(formData.children || []), { name: '', phone: '' }]
+                                        children: [...(formData.children || []), { name: '', phone: '', dob: '' }]
                                     })}
                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 dark:hover:bg-indigo-500/20"
                                 >
@@ -678,9 +807,9 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                             <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0 mt-1">
                                                 <span className="text-sm">👶</span>
                                             </div>
-                                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 dark:text-slate-400">Name</label>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 dark:text-slate-400">Name <span className="text-rose-500">*</span></label>
                                                     <input
                                                         type="text"
                                                         value={child.name || ''}
@@ -689,12 +818,25 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                                             updated[index] = { ...updated[index], name: e.target.value };
                                                             setFormData({ ...formData, children: updated });
                                                         }}
-                                                        placeholder="Child's name"
+                                                        placeholder="Name"
                                                         className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:text-white placeholder:text-slate-400"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 dark:text-slate-400">Phone <span className="font-normal lowercase opacity-70">(optional)</span></label>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 dark:text-slate-400">Date of Birth <span className="text-rose-500">*</span></label>
+                                                    <input
+                                                        type="date"
+                                                        value={child.dob || ''}
+                                                        onChange={e => {
+                                                            const updated = [...(formData.children || [])];
+                                                            updated[index] = { ...updated[index], dob: e.target.value };
+                                                            setFormData({ ...formData, children: updated });
+                                                        }}
+                                                        className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:text-white"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 dark:text-slate-400">Phone <span className="font-normal lowercase opacity-70">(opt)</span></label>
                                                     <div className="relative">
                                                         <input
                                                             type="tel"
@@ -712,7 +854,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                                             className="w-full px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:text-white placeholder:text-slate-400"
                                                         />
                                                         {touched[`child_${index}`] && child.phone && child.phone.length > 0 && child.phone.length < 10 && (
-                                                            <span className="text-[10px] text-rose-500 absolute -bottom-4 left-1">Must be exactly 10 digits</span>
+                                                            <span className="text-[10px] text-rose-500 absolute -bottom-4 left-1">Must be 10 digits</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -736,119 +878,12 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                     </div>
                 )}
 
-                {/* STEP 2: CONTACT DETAILS */}
-                {currentStep === 2 && (
-                    <div className={`space-y-6 ${direction === 'right' ? 'slide-in-right' : 'slide-in-left'}`}>
-                        <div className="text-center mb-6">
-                             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Contact Details</h3>
-                             <p className="text-slate-500 text-sm dark:text-slate-400">How can we reach this member?</p>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Email Address</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-4 top-3.5 text-slate-400" size={18} />
-                                    <input 
-                                        type="email" 
-                                        value={formData.email || ''} 
-                                        onChange={e => {
-                                            setFormData({...formData, email: e.target.value});
-                                            setTouched({...touched, email: true});
-                                        }}
-                                        onBlur={() => setTouched({...touched, email: true})}
-                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
-                                        placeholder="jane.doe@example.com"
-                                    />
-                                    {touched.email && formData.email && !validateEmail(formData.email) && (
-                                        <span className="text-[10px] text-rose-500 absolute -bottom-4 left-4">Invalid email address</span>
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Phone Number <span className="text-rose-500">*</span></label>
-                                <div className="relative">
-                                    <Phone className="absolute left-4 top-3.5 text-slate-400" size={18} />
-                                    <input 
-                                        type="tel" 
-                                        maxLength={10}
-                                        value={formData.phone || ''} 
-                                        onChange={e => {
-                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                            setFormData({...formData, phone: val});
-                                            setTouched({...touched, phone: true});
-                                        }}
-                                        onBlur={() => setTouched({...touched, phone: true})}
-                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
-                                        placeholder="10 digits"
-                                    />
-                                    {touched.phone && formData.phone && formData.phone.length > 0 && formData.phone.length < 10 && (
-                                        <span className="text-[10px] text-rose-500 absolute -bottom-4 left-4">Must be exactly 10 digits</span>
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Residential Address <span className="text-rose-500">*</span></label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-4 top-3.5 text-slate-400" size={18} />
-                                    <textarea 
-                                        value={formData.address || ''} 
-                                        onChange={e => setFormData({...formData, address: e.target.value})}
-                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all h-24 resize-none dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
-                                        placeholder="Full address here..."
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                                <h4 className="text-sm font-bold text-slate-900 mb-3 dark:text-white flex items-center gap-2">
-                                    <AlertCircle size={16} className="text-rose-500" /> 
-                                    Emergency Contact
-                                </h4>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Contact Name <span className="text-rose-500">*</span></label>
-                                        <input 
-                                            type="text" 
-                                            value={formData.emergencyContact || ''} 
-                                            onChange={e => setFormData({...formData, emergencyContact: e.target.value})}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
-                                            placeholder="Name"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Contact Phone <span className="text-rose-500">*</span></label>
-                                        <div className="relative">
-                                            <input 
-                                                type="tel" 
-                                                maxLength={10}
-                                                value={formData.emergencyPhone || ''} 
-                                                onChange={e => {
-                                                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                                    setFormData({...formData, emergencyPhone: val});
-                                                    setTouched({...touched, emergencyPhone: true});
-                                                }}
-                                                onBlur={() => setTouched({...touched, emergencyPhone: true})}
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
-                                                placeholder="10 digits"
-                                            />
-                                            {touched.emergencyPhone && formData.emergencyPhone && formData.emergencyPhone.length > 0 && formData.emergencyPhone.length < 10 && (
-                                                <span className="text-[10px] text-rose-500 absolute -bottom-4 left-2">Must be exactly 10 digits</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* STEP 3: MINISTRY INFO */}
-                {currentStep === 3 && (
+                {/* STEP 4: CHURCH */}
+                {currentStep === 4 && (
                     <div className={`space-y-6 ${direction === 'right' ? 'slide-in-right' : 'slide-in-left'}`}>
                         <div className="text-center mb-6">
                              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Church Involvement</h3>
-                             <p className="text-slate-500 text-sm dark:text-slate-400">Role, Zone, and Status</p>
+                             <p className="text-slate-500 text-sm dark:text-slate-400">Zone, role and membership status</p>
                         </div>
 
                          <div className="grid grid-cols-2 gap-4">
@@ -883,9 +918,31 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                     <option value={MemberStatus.Active}>Active</option>
                                     <option value={MemberStatus.Inactive}>Inactive</option>
                                     <option value={MemberStatus.Visitor}>Visitor</option>
+                                    <option value={MemberStatus.ExMember}>Ex-member</option>
                                 </select>
                             </div>
                         </div>
+
+                        {formData.status === MemberStatus.ExMember && (
+                            <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl dark:bg-rose-500/10 dark:border-rose-500/20 space-y-4 animate-enter">
+                                <div>
+                                    <label className="block text-xs font-bold text-rose-600 uppercase tracking-wider mb-1.5 dark:text-rose-400">Reason for leaving <span className="text-rose-500">*</span></label>
+                                    <select 
+                                        value={formData.exMemberReason || ''}
+                                        onChange={e => setFormData({...formData, exMemberReason: e.target.value})}
+                                        className="w-full h-[50px] px-4 py-3 bg-white border border-rose-200 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-rose-500/30 dark:text-white"
+                                    >
+                                        <option value="">-- Select Reason --</option>
+                                        <option value="Transferred">Transferred</option>
+                                        <option value="Married off">Married off</option>
+                                        <option value="Deceased">Deceased</option>
+                                        <option value="Resigned">Resigned</option>
+                                        <option value="Disciplinary Action">Disciplinary Action</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
 
                         <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Role / Ministry</label>
@@ -941,6 +998,16 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                     <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* STEP 5: PROFILE */}
+                {currentStep === 5 && (
+                    <div className={`space-y-6 ${direction === 'right' ? 'slide-in-right' : 'slide-in-left'}`}>
+                        <div className="text-center mb-6">
+                             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Profile & Background</h3>
+                             <p className="text-slate-500 text-sm dark:text-slate-400">Occupation, baptism details and notes</p>
                         </div>
 
                         {/* Baptism Details */}
@@ -1079,7 +1146,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                     </button>
                 )}
 
-                {currentStep < 3 ? (
+                {currentStep < 5 ? (
                     <button 
                         onClick={handleNextStep}
                         className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold transition-all shadow-lg shadow-slate-900/20 dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:shadow-indigo-600/30"

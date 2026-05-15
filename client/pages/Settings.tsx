@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, ImageIcon, RotateCcw, User, ShieldCheck, School, Zap, BellRing, Settings as SettingsIcon, Users, Trash2, Plus, Search, Loader2 } from 'lucide-react';
+import { Upload, ImageIcon, RotateCcw, User, ShieldCheck, School, Zap, BellRing, Settings as SettingsIcon, Users, Trash2, Plus, Search, Loader2, ChevronDown } from 'lucide-react';
 
 const parseBoolean = (value: unknown, fallback = true) => {
   if (value === null || value === undefined) return fallback;
@@ -20,6 +20,7 @@ const Settings: React.FC = () => {
   const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'saving' | 'success' | 'error'>('loading');
   const [profileMessage, setProfileMessage] = useState('');
   const [userRole, setUserRole] = useState<'admin' | 'zone_leader' | null>(null);
+  const [userMfaEnabled, setUserMfaEnabled] = useState(false);
 
   // Church Branding State (Admin Only)
   const [churchName, setChurchName] = useState('Ecclesia');
@@ -37,7 +38,14 @@ const Settings: React.FC = () => {
     anniversarySmsEnabled: true,
     absenteeSmsEnabled: true
   });
-  const [activeTab, setActiveTab] = useState<'profile' | 'branding' | 'automation' | 'roles' | 'users'>('profile');
+  
+  // MFA Settings State (Admin Only)
+  const [mfaSettings, setMfaSettings] = useState({
+    mode: 'optional',
+    enforcedRoles: [] as string[]
+  });
+  const [activeTab, setActiveTab] = useState<'profile' | 'branding' | 'automation' | 'security' | 'roles' | 'users'>('profile');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [roles, setRoles] = useState<any[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [rolesError, setRolesError] = useState('');
@@ -85,10 +93,21 @@ const Settings: React.FC = () => {
         anniversarySmsEnabled: parseBoolean(settings.anniversary_sms_enabled, true),
         absenteeSmsEnabled: parseBoolean(settings.absentee_sms_enabled, true)
       });
+      // Load MFA settings
+      let enforcedRoles = [];
+      try {
+        enforcedRoles = settings.mfa_enforced_roles ? JSON.parse(settings.mfa_enforced_roles) : [];
+      } catch (e) {}
+      
+      setMfaSettings({
+        mode: settings.mfa_mode || 'optional',
+        enforcedRoles
+      });
+      
       setAutomationStatus('idle');
     } catch {
       setAutomationStatus('error');
-      setAutomationMessage('Failed to load automation settings.');
+      setAutomationMessage('Failed to load settings.');
     }
   };
 
@@ -158,6 +177,7 @@ const Settings: React.FC = () => {
             setName(data.data.name || '');
             setEmail(data.data.email || '');
             setUserRole(data.data.role || null);
+            setUserMfaEnabled(data.data.mfaEnabled || false);
             if (data.data.role === 'admin') {
               await loadAutomationSettings();
             }
@@ -179,6 +199,9 @@ const Settings: React.FC = () => {
     if (activeTab === 'users') {
       loadUsers();
       if (roles.length === 0) loadRoles(); // Need roles for the user modal
+    }
+    if (activeTab === 'security') {
+      if (roles.length === 0) loadRoles(); // Need roles for the enforced roles list
     }
   }, [activeTab]);
 
@@ -238,7 +261,7 @@ const Settings: React.FC = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name, email }),
+        body: JSON.stringify({ name, email, mfaEnabled: userMfaEnabled }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -298,6 +321,43 @@ const Settings: React.FC = () => {
 
   const isGlobalDisabled = !automationSettings.automatedSmsEnabled;
   const isAutomationBusy = automationStatus === 'loading' || automationStatus === 'saving';
+
+  const [mfaStatus, setMfaStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [mfaMessage, setMfaMessage] = useState('');
+
+  const handleMfaSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMfaMessage('');
+    setMfaStatus('saving');
+
+    try {
+      const payload = {
+        mfa_mode: mfaSettings.mode,
+        mfa_enforced_roles: JSON.stringify(mfaSettings.enforcedRoles)
+      };
+
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data?.success) {
+        setMfaStatus('error');
+        setMfaMessage(data?.error?.message || 'Failed to update MFA settings.');
+        return;
+      }
+
+      setMfaStatus('success');
+      setMfaMessage('MFA settings updated successfully.');
+      setTimeout(() => setMfaStatus('idle'), 1500);
+    } catch {
+      setMfaStatus('error');
+      setMfaMessage('Failed to update MFA settings.');
+    }
+  };
 
   // --- Branding Handlers ---
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -424,6 +484,38 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleToggleUserMfa = async (id: string, currentMfa: boolean) => {
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ mfaEnabled: !currentMfa }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUsers(users.map(u => u.id === id ? { ...u, mfaEnabled: !currentMfa } : u));
+      } else {
+        alert(data.error?.message || 'Failed to update MFA status.');
+      }
+    } catch {
+      alert('Failed to update MFA status.');
+    }
+  };
+
+  const tabs = [
+    { id: 'profile', label: 'Profile & Security', icon: User },
+    ...(userRole === 'admin' ? [
+      { id: 'branding', label: 'Church Branding', icon: School },
+      { id: 'automation', label: 'Automation Hub', icon: Zap },
+      { id: 'security', label: 'Security & MFA', icon: ShieldCheck },
+      { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck },
+      { id: 'users', label: 'User Management', icon: Users },
+    ] : [])
+  ] as const;
+
+  const activeTabData = tabs.find(t => t.id === activeTab) || tabs[0];
+
   return (
     <div className="max-w-6xl animate-fade-in">
       <div className="mb-8">
@@ -438,32 +530,81 @@ const Settings: React.FC = () => {
 
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         {/* Sidebar Tabs */}
-        <div className="w-full lg:w-72 space-y-2 lg:sticky lg:top-24">
-          <button onClick={() => setActiveTab('profile')} className={tabClass('profile')}>
-            <User size={18} />
-            <span>Profile & Security</span>
-          </button>
-          
-          {userRole === 'admin' && (
-            <>
-              <button onClick={() => setActiveTab('branding')} className={tabClass('branding')}>
-                <School size={18} />
-                <span>Church Branding</span>
-              </button>
-              <button onClick={() => setActiveTab('automation')} className={tabClass('automation')}>
-                <Zap size={18} />
-                <span>Automation Hub</span>
-              </button>
-              <button onClick={() => setActiveTab('roles')} className={tabClass('roles')}>
-                <ShieldCheck size={18} />
-                <span>Roles & Permissions</span>
-              </button>
-              <button onClick={() => setActiveTab('users')} className={tabClass('users')}>
-                <Users size={18} />
-                <span>User Management</span>
-              </button>
-            </>
-          )}
+        <div className="w-full lg:w-72 lg:sticky lg:top-24 space-y-4">
+          {/* Mobile Custom Dropdown */}
+          <div className="block lg:hidden relative">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="w-full h-[54px] px-5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-slate-800 dark:bg-slate-900 dark:border-slate-800 dark:text-white flex items-center justify-between shadow-sm"
+            >
+              <div className="flex items-center gap-3">
+                <activeTabData.icon size={18} className="text-indigo-600 dark:text-indigo-400" />
+                <span>{activeTabData.label}</span>
+              </div>
+              <ChevronDown size={18} className={`text-slate-400 transition-transform ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isMobileMenuOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                />
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-xl z-50 overflow-hidden animate-enter">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-5 py-4 text-left font-bold transition-all ${
+                        activeTab === tab.id
+                          ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400'
+                          : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <tab.icon size={18} className={activeTab === tab.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} />
+                      <span>{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Desktop Tabs */}
+          <div className="hidden lg:block space-y-2">
+            <button onClick={() => setActiveTab('profile')} className={tabClass('profile')}>
+              <User size={18} />
+              <span>Profile & Security</span>
+            </button>
+            
+            {userRole === 'admin' && (
+              <>
+                <button onClick={() => setActiveTab('branding')} className={tabClass('branding')}>
+                  <School size={18} />
+                  <span>Church Branding</span>
+                </button>
+                <button onClick={() => setActiveTab('automation')} className={tabClass('automation')}>
+                  <Zap size={18} />
+                  <span>Automation Hub</span>
+                </button>
+                <button onClick={() => setActiveTab('security')} className={tabClass('security')}>
+                  <ShieldCheck size={18} />
+                  <span>Security & MFA</span>
+                </button>
+                <button onClick={() => setActiveTab('roles')} className={tabClass('roles')}>
+                  <ShieldCheck size={18} />
+                  <span>Roles & Permissions</span>
+                </button>
+                <button onClick={() => setActiveTab('users')} className={tabClass('users')}>
+                  <Users size={18} />
+                  <span>User Management</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Main Content Area */}
@@ -501,6 +642,21 @@ const Settings: React.FC = () => {
                         disabled={profileStatus === 'loading'}
                       />
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-5 mt-6 rounded-2xl border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                    <div className="pr-4">
+                      <p className="font-bold text-slate-800 dark:text-white">Two-Factor Authentication (MFA)</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Require an email security code when signing in.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUserMfaEnabled(!userMfaEnabled)}
+                      disabled={profileStatus === 'loading' || profileStatus === 'saving'}
+                      className={toggleButtonClass(userMfaEnabled, profileStatus === 'loading' || profileStatus === 'saving')}
+                    >
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${userMfaEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
                   </div>
 
                   {profileMessage && (
@@ -731,6 +887,77 @@ const Settings: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'security' && userRole === 'admin' && (
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
+                <h2 className="text-xl font-black text-slate-800 dark:text-white">Security & MFA</h2>
+              </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-8">
+                Configure Multi-Factor Authentication (MFA) requirements for the platform.
+              </p>
+
+              <form onSubmit={handleMfaSettingsSubmit}>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">MFA Enforcement Level</label>
+                    <select
+                      value={mfaSettings.mode}
+                      onChange={(e) => setMfaSettings({ ...mfaSettings, mode: e.target.value })}
+                      className="w-full h-[50px] px-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white cursor-pointer"
+                    >
+                      <option value="off">Disabled Globally</option>
+                      <option value="optional">Optional (Users can opt-in)</option>
+                      <option value="enforced">Enforced (Required for selected roles)</option>
+                    </select>
+                  </div>
+
+                  {mfaSettings.mode === 'enforced' && (
+                    <div className="p-6 border border-indigo-100 bg-indigo-50/30 rounded-2xl dark:border-indigo-500/20 dark:bg-indigo-500/5">
+                      <p className="text-sm font-bold text-slate-800 dark:text-white mb-4">Enforced Roles</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {roles.map((role) => (
+                          <label key={role.id} className={`flex items-center gap-3 cursor-pointer p-4 rounded-xl border transition-all ${mfaSettings.enforcedRoles.includes(role.id) ? 'bg-white border-indigo-200 shadow-sm shadow-indigo-100 dark:bg-slate-800 dark:border-indigo-500/30' : 'bg-slate-50/50 border-slate-200 hover:bg-white hover:border-indigo-200 dark:bg-slate-800/50 dark:border-slate-700 dark:hover:border-indigo-500/30'}`}>
+                            <input
+                              type="checkbox"
+                              checked={mfaSettings.enforcedRoles.includes(role.id)}
+                              onChange={(e) => {
+                                const newRoles = e.target.checked 
+                                  ? [...mfaSettings.enforcedRoles, role.id]
+                                  : mfaSettings.enforcedRoles.filter(id => id !== role.id);
+                                setMfaSettings({ ...mfaSettings, enforcedRoles: newRoles });
+                              }}
+                              className="appearance-none w-6 h-6 rounded-xl border-2 border-slate-300 bg-white cursor-pointer transition-all dark:border-slate-600 dark:bg-slate-700 checked:bg-indigo-600 checked:border-indigo-600 dark:checked:bg-indigo-500 dark:checked:border-indigo-500 shadow-sm"
+                            />
+                            <span className={`text-sm font-semibold transition-colors ${mfaSettings.enforcedRoles.includes(role.id) ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-600 dark:text-slate-400'}`}>
+                              {role.name}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-8 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={mfaStatus === 'saving'}
+                    className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-600/20"
+                  >
+                    {mfaStatus === 'saving' ? 'Saving...' : 'Save Security Settings'}
+                  </button>
+                </div>
+              </form>
+
+              {mfaMessage && (
+                <div className={`mt-4 p-4 rounded-xl text-sm border ${mfaStatus === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20' : 'bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/20'}`}>
+                  {mfaMessage}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'roles' && userRole === 'admin' && (
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex justify-between items-center mb-8">
@@ -840,13 +1067,14 @@ const Settings: React.FC = () => {
                   {usersError}
                 </div>
               ) : (
-                <div className="overflow-hidden border border-slate-100 rounded-2xl dark:border-slate-800">
-                  <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto overflow-y-hidden w-full border border-slate-100 rounded-2xl dark:border-slate-800">
+                  <table className="w-full text-left text-sm whitespace-nowrap min-w-[600px]">
                     <thead className="bg-slate-50 dark:bg-slate-800/50">
                       <tr>
                         <th className="px-6 py-4 font-black text-slate-400 uppercase tracking-tighter text-[10px]">User</th>
                         <th className="px-6 py-4 font-black text-slate-400 uppercase tracking-tighter text-[10px]">Role</th>
                         <th className="px-6 py-4 font-black text-slate-400 uppercase tracking-tighter text-[10px]">Joined</th>
+                        <th className="px-6 py-4 font-black text-slate-400 uppercase tracking-tighter text-[10px]">MFA</th>
                         <th className="px-6 py-4 font-black text-slate-400 uppercase tracking-tighter text-[10px] text-right">Actions</th>
                       </tr>
                     </thead>
@@ -873,6 +1101,14 @@ const Settings: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
                             {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}
+                          </td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={() => handleToggleUserMfa(user.id, user.mfaEnabled)}
+                              className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${user.mfaEnabled ? 'bg-emerald-100 text-emerald-700 hover:bg-rose-100 hover:text-rose-700 dark:bg-emerald-500/20 dark:text-emerald-400 dark:hover:bg-rose-500/20 dark:hover:text-rose-400' : 'bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-400'}`}
+                            >
+                              {user.mfaEnabled ? 'Enabled' : 'Disabled'}
+                            </button>
                           </td>
                           <td className="px-6 py-4 text-right">
                             <button 
@@ -1083,8 +1319,8 @@ const Settings: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Module Permissions</label>
-                <div className="overflow-hidden border border-slate-100 rounded-2xl dark:border-slate-800">
-                  <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto overflow-y-hidden w-full border border-slate-100 rounded-2xl dark:border-slate-800">
+                  <table className="w-full text-left text-sm whitespace-nowrap min-w-[500px]">
                     <thead className="bg-slate-50 dark:bg-slate-800/50">
                       <tr>
                         <th className="px-6 py-4 font-black text-slate-400 uppercase tracking-tighter text-[10px]">Module</th>

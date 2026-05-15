@@ -98,6 +98,11 @@ const AppInner: React.FC = () => {
       if (!res.ok || !data.success) {
         return { success: false, error: data?.error?.message || 'Login failed' };
       }
+      
+      if (data.mfaRequired) {
+        return { success: true, mfaRequired: true, userId: data.userId };
+      }
+
       login(data.data);
       return { success: true, role: data.data.role };
     } catch {

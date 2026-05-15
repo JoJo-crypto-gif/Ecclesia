@@ -351,7 +351,8 @@ function transformMember(row) {
     baptizedBy: row.baptized_by,
     baptismMethod: row.baptism_method,
     baptismChurch: row.baptism_church,
-    children: row.children || []
+    children: row.children || [],
+    exMemberReason: row.ex_member_reason
   };
 }
 

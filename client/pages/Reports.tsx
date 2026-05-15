@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useData } from '../context/DataContext';
-import { FileBarChart, Users, Calendar, BarChart3, Search, UserCheck, ShieldAlert, HeartPulse, CheckCircle2, Download, Printer } from 'lucide-react';
+import { FileBarChart, Users, Calendar, BarChart3, Search, UserCheck, ShieldAlert, HeartPulse, CheckCircle2, Download, Printer, CheckSquare, Square, Columns, ChevronDown, X } from 'lucide-react';
 import { Member, EventInstance, AttendanceRecord, User } from '../types';
 import Logo from '../components/Logo';
 import ReportSessionPickerModal from '../components/attendance/ReportSessionPickerModal';
@@ -8,6 +8,22 @@ import ViewMemberModal from '../components/members/ViewMemberModal';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
+
+const calculateAge = (dobString?: string): number | null => {
+  if (!dobString) return null;
+  const dob = new Date(dobString);
+  if (isNaN(dob.getTime())) return null;
+  
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  
+  return age;
+};
 
 interface ReportOverview {
   totalActiveMembers: number;
@@ -47,7 +63,8 @@ interface MemberHistoryItem {
 
 const Reports: React.FC<{ user: User | null }> = ({ user }) => {
   const { settings, members, fetchAllMembers, attendanceTrends, zones, events, fetchInstances, theme } = useData();
-  const [activeTab, setActiveTab] = useState<'overview' | 'member' | 'event'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'member' | 'event' | 'membership'>('overview');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const churchName = settings.church_name || 'Ecclesia';
   const churchLogo = settings.church_logo || '';
 
@@ -76,6 +93,41 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
   const [isSessionPickerOpen, setIsSessionPickerOpen] = useState(false);
   const [viewedEventMember, setViewedEventMember] = useState<Member | null>(null);
 
+  // Membership List state
+  const [membershipSearchField, setMembershipSearchField] = useState('all');
+  const [membershipSearchQuery, setMembershipSearchQuery] = useState('');
+  const [membershipSelectedIds, setMembershipSelectedIds] = useState<Set<string>>(new Set());
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['firstName', 'lastName', 'phone', 'zone', 'role', 'status', 'exMemberReason']));
+
+  const MEMBERSHIP_COLUMNS = useMemo(() => [
+    { id: 'firstName',       label: 'First Name' },
+    { id: 'lastName',        label: 'Last Name' },
+    { id: 'otherName',       label: 'Other Name' },
+    { id: 'email',           label: 'Email' },
+    { id: 'phone',           label: 'Phone' },
+    { id: 'address',         label: 'Address' },
+    { id: 'zone',            label: 'Zone' },
+    { id: 'role',            label: 'Role' },
+    { id: 'status',          label: 'Status' },
+    { id: 'exMemberReason',  label: 'Reason for Leaving' },
+    { id: 'gender',          label: 'Gender' },
+    { id: 'dob',             label: 'Date of Birth' },
+    { id: 'maritalStatus',   label: 'Marital Status' },
+    { id: 'occupation',      label: 'Occupation' },
+    { id: 'joinDate',        label: 'Join Date' },
+    { id: 'discoverySource', label: 'Discovery Source' },
+    { id: 'emergencyContact',label: 'Emergency Contact' },
+    { id: 'emergencyPhone',  label: 'Emergency Phone' },
+    { id: 'isBaptized',      label: 'Baptized' },
+    { id: 'baptismDate',     label: 'Baptism Date' },
+    { id: 'baptizedBy',      label: 'Baptized By' },
+    { id: 'spouseName',      label: 'Spouse Name' },
+    { id: 'spousePhone',     label: 'Spouse Phone' },
+    { id: 'motherName',      label: 'Mother Name' },
+    { id: 'fatherName',      label: 'Father Name' },
+  ], []);
+
   // Fetch overview data
   useEffect(() => {
     if (activeTab === 'overview' && !overviewStats) {
@@ -101,7 +153,7 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
 
   // Pre-load all members for searchable dropdown
   useEffect(() => {
-    if ((activeTab === 'member' || activeTab === 'event') && allMembers.length === 0) {
+    if ((activeTab === 'member' || activeTab === 'event' || activeTab === 'membership') && allMembers.length === 0) {
       fetchAllMembers().then(setAllMembers);
     }
   }, [activeTab, allMembers.length, fetchAllMembers]);
@@ -209,6 +261,55 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
       })
       .sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
   }, [eventAttendanceRecords, eventReportSubTab, eventSearchQuery]);
+
+  const filteredMembershipList = useMemo(() => {
+    if (!membershipSearchQuery) return allMembers;
+    const q = membershipSearchQuery.toLowerCase();
+    return allMembers.filter(m => {
+      const fv = (val: string | undefined | null | boolean) => String(val ?? '').toLowerCase();
+      const zoneName = zones.find(z => z.id === m.zoneId)?.name || '';
+      switch (membershipSearchField) {
+        case 'firstName':        return fv(m.firstName).includes(q);
+        case 'lastName':         return fv(m.lastName).includes(q);
+        case 'otherName':        return fv(m.otherName).includes(q);
+        case 'email':            return fv(m.email).includes(q);
+        case 'phone':            return fv(m.phone).includes(q);
+        case 'address':          return fv(m.address).includes(q);
+        case 'zone':             return fv(zoneName).includes(q);
+        case 'role':             return fv(m.role).includes(q);
+        case 'status':           return fv(m.status).includes(q);
+        case 'exMemberReason':   return fv(m.exMemberReason).includes(q);
+        case 'gender':           return fv(m.gender).includes(q);
+        case 'age': {
+          const age = calculateAge(m.dob);
+          return age !== null && age.toString().includes(q);
+        }
+        case 'occupation':       return fv(m.occupation).includes(q);
+        case 'maritalStatus':    return fv(m.maritalStatus).includes(q);
+        case 'discoverySource':  return fv(m.discoverySource).includes(q);
+        case 'emergencyContact': return fv(m.emergencyContact).includes(q);
+        case 'emergencyPhone':   return fv(m.emergencyPhone).includes(q);
+        case 'spouseName':       return fv(m.spouseName).includes(q);
+        case 'motherName':       return fv(m.motherName).includes(q);
+        case 'fatherName':       return fv(m.fatherName).includes(q);
+        case 'isBaptized':       return fv(m.isBaptized ? 'yes' : 'no').includes(q);
+        default: // 'all'
+          return (
+            fv(m.firstName).includes(q) ||
+            fv(m.lastName).includes(q) ||
+            fv(m.otherName).includes(q) ||
+            fv(m.email).includes(q) ||
+            fv(m.phone).includes(q) ||
+            fv(m.occupation).includes(q) ||
+            fv(m.role).includes(q) ||
+            fv(m.emergencyContact).includes(q) ||
+            fv(zoneName).includes(q) ||
+            fv(m.exMemberReason).includes(q) ||
+            (calculateAge(m.dob) !== null && calculateAge(m.dob)?.toString().includes(q))
+          );
+      }
+    });
+  }, [allMembers, membershipSearchField, membershipSearchQuery, zones]);
 
   const handlePrint = () => {
     if (!selectedMember || !memberAnalytics) return;
@@ -339,6 +440,135 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
     document.body.removeChild(link);
   };
 
+  const handleExportMembershipCsv = () => {
+    if (membershipSelectedIds.size === 0) return;
+    const selectedMembers = filteredMembershipList.filter(m => membershipSelectedIds.has(m.id));
+    
+    const activeColumns = MEMBERSHIP_COLUMNS.filter(c => visibleColumns.has(c.id));
+    let csvContent = activeColumns.map(c => c.label).join(',') + '\n';
+    
+    const getColVal = (m: typeof selectedMembers[0], colId: string) => {
+      switch (colId) {
+        case 'firstName':        return m.firstName || '';
+        case 'lastName':         return m.lastName || '';
+        case 'otherName':        return m.otherName || '';
+        case 'email':            return m.email || '';
+        case 'phone':            return m.phone || '';
+        case 'address':          return m.address || '';
+        case 'zone':             return zones.find(z => z.id === m.zoneId)?.name || 'Unassigned';
+        case 'role':             return m.role || '';
+        case 'status':           return m.status || '';
+        case 'gender':           return m.gender || '';
+        case 'dob':              return m.dob ? new Date(m.dob).toLocaleDateString() : '';
+        case 'maritalStatus':    return m.maritalStatus || '';
+        case 'occupation':       return m.occupation || '';
+        case 'joinDate':         return m.joinDate ? new Date(m.joinDate).toLocaleDateString() : '';
+        case 'discoverySource':  return m.discoverySource || '';
+        case 'emergencyContact': return m.emergencyContact || '';
+        case 'emergencyPhone':   return m.emergencyPhone || '';
+        case 'isBaptized':       return m.isBaptized ? 'Yes' : 'No';
+        case 'baptismDate':      return m.baptismDate ? new Date(m.baptismDate).toLocaleDateString() : '';
+        case 'baptizedBy':       return m.baptizedBy || '';
+        case 'spouseName':       return m.spouseName || '';
+        case 'spousePhone':      return m.spousePhone || '';
+        case 'motherName':       return m.motherName || '';
+        case 'fatherName':       return m.fatherName || '';
+        default:                 return '';
+      }
+    };
+
+    for (const m of selectedMembers) {
+      csvContent += activeColumns.map(col => `"${getColVal(m, col.id)}"`).join(',') + '\n';
+    }
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Membership_Report_${new Date().toISOString().split('T')[0]}.csv`;
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrintMembership = () => {
+    if (membershipSelectedIds.size === 0) return;
+    const selectedMembers = filteredMembershipList.filter(m => membershipSelectedIds.has(m.id));
+    const activeColumns = MEMBERSHIP_COLUMNS.filter(c => visibleColumns.has(c.id));
+    
+    const printWindow = window.open('', '', 'width=900,height=800');
+    if (!printWindow) return;
+
+    const getColVal = (m: typeof selectedMembers[0], colId: string) => {
+      switch (colId) {
+        case 'firstName':        return m.firstName || '';
+        case 'lastName':         return m.lastName || '';
+        case 'otherName':        return m.otherName || '';
+        case 'email':            return m.email || '-';
+        case 'phone':            return m.phone || '-';
+        case 'address':          return m.address || '-';
+        case 'zone':             return zones.find(z => z.id === m.zoneId)?.name || 'Unassigned';
+        case 'role':             return m.role || '';
+        case 'status':           return m.status || '';
+        case 'gender':           return m.gender || '-';
+        case 'dob':              return m.dob ? new Date(m.dob).toLocaleDateString() : '-';
+        case 'maritalStatus':    return m.maritalStatus || '-';
+        case 'occupation':       return m.occupation || '-';
+        case 'joinDate':         return m.joinDate ? new Date(m.joinDate).toLocaleDateString() : '-';
+        case 'discoverySource':  return m.discoverySource || '-';
+        case 'emergencyContact': return m.emergencyContact || '-';
+        case 'emergencyPhone':   return m.emergencyPhone || '-';
+        case 'isBaptized':       return m.isBaptized ? 'Yes' : 'No';
+        case 'baptismDate':      return m.baptismDate ? new Date(m.baptismDate).toLocaleDateString() : '-';
+        case 'baptizedBy':       return m.baptizedBy || '-';
+        case 'spouseName':       return m.spouseName || '-';
+        case 'spousePhone':      return m.spousePhone || '-';
+        case 'motherName':       return m.motherName || '-';
+        case 'fatherName':       return m.fatherName || '-';
+        default:                 return '-';
+      }
+    };
+
+    const reportDate = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    
+    printWindow.document.write(`
+      <html>
+      <head>
+          <title>Membership Report</title>
+          <style>
+              body { font-family: system-ui, sans-serif; padding: 40px; color: #0f172a; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.875rem; }
+              th, td { border-bottom: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; }
+              th { background-color: #f8fafc; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; color: #64748b; }
+          </style>
+      </head>
+      <body>
+          <h2>${churchName} - Membership Report</h2>
+          <p>Generated: ${reportDate} | Total Selected: ${selectedMembers.length}</p>
+          <table>
+              <thead><tr>${activeColumns.map(c => `<th>${c.label}</th>`).join('')}</tr></thead>
+              <tbody>
+                  ${selectedMembers.map(m => `
+                      <tr>${activeColumns.map(col => `<td>${getColVal(m, col.id)}</td>`).join('')}</tr>
+                  `).join('')}
+              </tbody>
+          </table>
+          <script>window.onload = () => { window.print(); }</script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const tabs = [
+    { id: 'overview', label: 'Overview Dashboard', icon: BarChart3 },
+    { id: 'member', label: 'Member Report Card', icon: UserCheck },
+    { id: 'event', label: 'Event Report Card', icon: Calendar },
+    { id: 'membership', label: 'Membership List', icon: Users },
+  ] as const;
+
+  const activeTabData = tabs.find(t => t.id === activeTab) || tabs[0];
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-10">
       {/* Header */}
@@ -353,8 +583,8 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
           </p>
         </div>
         
-        {/* Tab Navigation */}
-        <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 dark:bg-slate-800/80 dark:border-slate-700">
+        {/* Tab Navigation - Desktop */}
+        <div className="hidden lg:flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 dark:bg-slate-800/80 dark:border-slate-700">
           <button
             onClick={() => setActiveTab('overview')}
             className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -385,6 +615,58 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
           >
             Event Report Card
           </button>
+          <button
+            onClick={() => setActiveTab('membership')}
+            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'membership' 
+                ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white' 
+                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+            }`}
+          >
+            Membership List
+          </button>
+        </div>
+
+        {/* Tab Navigation - Mobile Dropdown */}
+        <div className="block lg:hidden w-full relative z-30">
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="w-full h-[54px] px-5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-slate-800 dark:bg-slate-900 dark:border-slate-800 dark:text-white flex items-center justify-between shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <activeTabData.icon size={18} className="text-indigo-600 dark:text-indigo-400" />
+              <span>{activeTabData.label}</span>
+            </div>
+            <ChevronDown size={18} className={`text-slate-400 transition-transform ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {isMobileMenuOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setIsMobileMenuOpen(false)}
+              />
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-xl z-50 overflow-hidden animate-enter">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-5 py-4 text-left font-bold transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400'
+                        : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <tab.icon size={18} className={activeTab === tab.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} />
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -443,7 +725,7 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
                 </h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full text-left whitespace-nowrap min-w-[500px]">
                   <thead className="bg-slate-50 dark:bg-slate-800/50">
                     <tr>
                       <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">Zone</th>
@@ -731,7 +1013,7 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
               {/* Detailed History Table */}
               {memberHistory.length > 0 && (
                 <div className="p-0 overflow-x-auto">
-                  <table className="w-full text-left">
+                  <table className="w-full text-left whitespace-nowrap min-w-[600px]">
                     <thead className="bg-slate-50 dark:bg-slate-800/80">
                       <tr>
                         <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
@@ -850,7 +1132,7 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
                 <div className="p-10 text-center text-slate-400">Loading attendance...</div>
               ) : (
                 <div className="p-0 overflow-x-auto">
-                  <table className="w-full text-left">
+                  <table className="w-full text-left whitespace-nowrap min-w-[600px]">
                     <thead className="bg-slate-50 dark:bg-slate-800/80">
                       <tr>
                         <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Member Name</th>
@@ -917,6 +1199,272 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'membership' && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 relative z-20">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Membership Directory Report</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Filter and select members for export and printing.</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleExportMembershipCsv} disabled={membershipSelectedIds.size === 0} className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-lg text-sm font-bold hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700">
+                  <Download size={16} /> Export CSV
+                </button>
+                <button onClick={handlePrintMembership} disabled={membershipSelectedIds.size === 0} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm shadow-indigo-600/20">
+                  <Printer size={16} /> Print Selected
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <select
+                value={membershipSearchField}
+                onChange={(e) => setMembershipSearchField(e.target.value)}
+                className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+              >
+                <option value="all">All Fields</option>
+                <optgroup label="Identity">
+                  <option value="firstName">First Name</option>
+                  <option value="lastName">Last Name</option>
+                  <option value="otherName">Other Name</option>
+                  <option value="gender">Gender</option>
+                  <option value="age">Age</option>
+                  <option value="maritalStatus">Marital Status</option>
+                </optgroup>
+                <optgroup label="Contact">
+                  <option value="email">Email</option>
+                  <option value="phone">Phone</option>
+                  <option value="address">Address</option>
+                </optgroup>
+                <optgroup label="Church">
+                  <option value="zone">Zone</option>
+                  <option value="role">Role</option>
+                  <option value="status">Status</option>
+                  <option value="exMemberReason">Reason for Leaving</option>
+                  <option value="joinDate">Join Date</option>
+                  <option value="discoverySource">Discovery Source</option>
+                </optgroup>
+                <optgroup label="Employment">
+                  <option value="occupation">Occupation</option>
+                </optgroup>
+                <optgroup label="Emergency">
+                  <option value="emergencyContact">Emergency Contact</option>
+                  <option value="emergencyPhone">Emergency Phone</option>
+                </optgroup>
+                <optgroup label="Family">
+                  <option value="spouseName">Spouse Name</option>
+                  <option value="motherName">Mother Name</option>
+                  <option value="fatherName">Father Name</option>
+                </optgroup>
+                <optgroup label="Baptism">
+                  <option value="isBaptized">Baptized (yes/no)</option>
+                </optgroup>
+              </select>
+              <button
+                onClick={() => setShowColumnDropdown(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 shrink-0"
+              >
+                <Columns size={16} /> Columns
+                {visibleColumns.size < MEMBERSHIP_COLUMNS.length && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded-full text-[10px] font-black dark:bg-indigo-500/20 dark:text-indigo-300">
+                    {visibleColumns.size}/{MEMBERSHIP_COLUMNS.length}
+                  </span>
+                )}
+              </button>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  value={membershipSearchQuery}
+                  onChange={(e) => setMembershipSearchQuery(e.target.value)}
+                  placeholder="Type to filter..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                />
+              </div>
+            </div>
+
+            {/* Column Picker Modal */}
+            {showColumnDropdown && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowColumnDropdown(false)}>
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                <div
+                  className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-6 space-y-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-800 dark:text-white">Visible Columns</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{visibleColumns.size} of {MEMBERSHIP_COLUMNS.length} selected</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setVisibleColumns(new Set(MEMBERSHIP_COLUMNS.map(c => c.id)))} className="text-xs font-bold text-indigo-600 hover:underline dark:text-indigo-400">All</button>
+                      <span className="text-slate-300 dark:text-slate-600">|</span>
+                      <button onClick={() => setVisibleColumns(new Set())} className="text-xs font-bold text-slate-500 hover:underline dark:text-slate-400">None</button>
+                      <button onClick={() => setShowColumnDropdown(false)} className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors dark:hover:bg-slate-800">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                    {[
+                      { label: 'Identity',   cols: ['firstName','lastName','otherName','gender','dob','maritalStatus'] },
+                      { label: 'Contact',    cols: ['email','phone','address'] },
+                      { label: 'Church',     cols: ['zone','role','status','exMemberReason','joinDate','discoverySource'] },
+                      { label: 'Employment', cols: ['occupation'] },
+                      { label: 'Emergency',  cols: ['emergencyContact','emergencyPhone'] },
+                      { label: 'Family',     cols: ['spouseName','spousePhone','motherName','fatherName'] },
+                      { label: 'Baptism',    cols: ['isBaptized','baptismDate','baptizedBy'] },
+                    ].map(group => (
+                      <div key={group.label}>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 dark:text-slate-500">{group.label}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {group.cols.map(colId => {
+                            const col = MEMBERSHIP_COLUMNS.find(c => c.id === colId);
+                            if (!col) return null;
+                            const isOn = visibleColumns.has(colId);
+                            return (
+                              <button
+                                key={colId}
+                                type="button"
+                                onClick={() => {
+                                  const next = new Set(visibleColumns);
+                                  if (next.has(colId)) next.delete(colId);
+                                  else next.add(colId);
+                                  setVisibleColumns(next);
+                                }}
+                                className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+                                  isOn
+                                    ? 'border-indigo-200 bg-indigo-50 text-indigo-600 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300'
+                                    : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300'
+                                }`}
+                              >
+                                {col.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      onClick={() => setShowColumnDropdown(false)}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-colors"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
+              Showing {filteredMembershipList.length} Members | {membershipSelectedIds.size} Selected
+            </div>
+
+            <div className="overflow-x-auto border border-slate-100 rounded-xl dark:border-slate-800">
+              <table className="w-full text-left whitespace-nowrap min-w-[1000px]">
+                <thead className="bg-slate-50 dark:bg-slate-800/80">
+                  <tr>
+                    <th className="px-4 py-3 w-4">
+                      <button 
+                        onClick={() => {
+                          if (membershipSelectedIds.size === filteredMembershipList.length && filteredMembershipList.length > 0) {
+                            setMembershipSelectedIds(new Set());
+                          } else {
+                            setMembershipSelectedIds(new Set(filteredMembershipList.map(m => m.id)));
+                          }
+                        }}
+                        className="text-slate-400 hover:text-indigo-600 transition-colors"
+                      >
+                        {filteredMembershipList.length > 0 && membershipSelectedIds.size === filteredMembershipList.length ? <CheckSquare size={18} className="text-indigo-600" /> : <Square size={18} />}
+                      </button>
+                    </th>
+                    {MEMBERSHIP_COLUMNS.filter(c => visibleColumns.has(c.id)).map(col => (
+                      <th key={col.id} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">{col.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {filteredMembershipList.map(member => (
+                    <tr 
+                      key={member.id} 
+                      className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${membershipSelectedIds.has(member.id) ? 'bg-indigo-50/30 dark:bg-indigo-900/10' : ''}`}
+                      onClick={() => {
+                        const newSet = new Set(membershipSelectedIds);
+                        if (newSet.has(member.id)) newSet.delete(member.id);
+                        else newSet.add(member.id);
+                        setMembershipSelectedIds(newSet);
+                      }}
+                    >
+                      <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                          onClick={() => {
+                            const newSet = new Set(membershipSelectedIds);
+                            if (newSet.has(member.id)) newSet.delete(member.id);
+                            else newSet.add(member.id);
+                            setMembershipSelectedIds(newSet);
+                          }}
+                          className="text-slate-300 hover:text-indigo-600 transition-colors"
+                        >
+                          {membershipSelectedIds.has(member.id) ? <CheckSquare size={18} className="text-indigo-600" /> : <Square size={18} />}
+                        </button>
+                      </td>
+                      {visibleColumns.has('firstName') && (
+                        <td className="px-4 py-3 font-bold text-slate-800 dark:text-white">
+                          <div className="flex items-center gap-3">
+                            <img src={member.avatarUrl || `https://ui-avatars.com/api/?name=${member.firstName}+${member.lastName}&background=random`} className="w-8 h-8 rounded-full object-cover" alt="" />
+                            {member.firstName}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.has('lastName') && (<td className="px-4 py-3 font-bold text-slate-800 dark:text-white">{member.lastName}</td>)}
+                      {visibleColumns.has('otherName') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.otherName || '-'}</td>)}
+                      {visibleColumns.has('email') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.email || '-'}</td>)}
+                      {visibleColumns.has('phone') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.phone || '-'}</td>)}
+                      {visibleColumns.has('address') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400 max-w-[160px] truncate">{member.address || '-'}</td>)}
+                      {visibleColumns.has('zone') && (<td className="px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">{zones.find(z => z.id === member.zoneId)?.name || 'Unassigned'}</td>)}
+                      {visibleColumns.has('role') && (<td className="px-4 py-3 text-xs text-slate-500">{member.role || 'Member'}</td>)}
+                      {visibleColumns.has('status') && (
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${member.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : member.status === 'Visitor' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                            {member.status}
+                          </span>
+                        </td>
+                      )}
+                            {visibleColumns.has('gender') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.gender || '-'}</td>)}
+                            {visibleColumns.has('exMemberReason') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.exMemberReason || '-'}</td>)}
+                      {visibleColumns.has('dob') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.dob ? new Date(member.dob).toLocaleDateString() : '-'}</td>)}
+                      {visibleColumns.has('maritalStatus') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.maritalStatus || '-'}</td>)}
+                      {visibleColumns.has('occupation') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.occupation || '-'}</td>)}
+                      {visibleColumns.has('joinDate') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.joinDate ? new Date(member.joinDate).toLocaleDateString() : '-'}</td>)}
+                      {visibleColumns.has('discoverySource') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.discoverySource || '-'}</td>)}
+                      {visibleColumns.has('emergencyContact') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.emergencyContact || '-'}</td>)}
+                      {visibleColumns.has('emergencyPhone') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.emergencyPhone || '-'}</td>)}
+                      {visibleColumns.has('isBaptized') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.isBaptized ? 'Yes' : 'No'}</td>)}
+                      {visibleColumns.has('baptismDate') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.baptismDate ? new Date(member.baptismDate).toLocaleDateString() : '-'}</td>)}
+                      {visibleColumns.has('baptizedBy') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.baptizedBy || '-'}</td>)}
+                      {visibleColumns.has('spouseName') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.spouseName || '-'}</td>)}
+                      {visibleColumns.has('spousePhone') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.spousePhone || '-'}</td>)}
+                      {visibleColumns.has('motherName') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.motherName || '-'}</td>)}
+                      {visibleColumns.has('fatherName') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.fatherName || '-'}</td>)}
+                    </tr>
+                  ))}
+                  {filteredMembershipList.length === 0 && (
+                    <tr>
+                      <td colSpan={1 + MEMBERSHIP_COLUMNS.filter(c => visibleColumns.has(c.id)).length} className="p-10 text-center text-slate-400">No members found matching your search.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
       <ReportSessionPickerModal

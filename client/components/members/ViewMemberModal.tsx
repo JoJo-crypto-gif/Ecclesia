@@ -6,7 +6,7 @@ import {
   AreaChart, Area, Cell
 } from 'recharts';
 import Modal from '../Modal';
-import { Member, Zone, MemberStatus } from '../../types';
+import { Member, Zone, MemberStatus, MemberChild } from '../../types';
 import { useData } from '../../context/DataContext';
 import { getMemberDisplayName, getMemberTitles } from '../../utils/memberName';
 
@@ -31,6 +31,7 @@ const getStatusBadgeStyles = (status: MemberStatus) => {
     case MemberStatus.Active: return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
     case MemberStatus.Inactive: return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/50 dark:text-slate-400 dark:border-slate-600';
     case MemberStatus.Visitor: return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+    case MemberStatus.ExMember: return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
     default: return 'bg-slate-100 text-slate-600';
   }
 };
@@ -78,6 +79,12 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
             {member.status}
           </span>
         </div>
+        {member.status === MemberStatus.ExMember && member.exMemberReason && (
+          <div className="mt-3 bg-rose-50/50 border border-rose-100 rounded-xl px-4 py-2.5 dark:bg-rose-500/5 dark:border-rose-500/10 inline-block">
+            <span className="text-[10px] uppercase font-bold text-rose-400 block mb-0.5">Reason for leaving</span>
+            <span className="text-sm font-bold text-rose-700 dark:text-rose-400">{member.exMemberReason}</span>
+          </div>
+        )}
         <div className="mt-5 space-y-2">
           <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
             <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
@@ -281,19 +288,33 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
           )}
         </span>
         {member.children && member.children.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {member.children.map((child: { name: string; phone?: string }, idx: number) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {member.children.map((child: MemberChild, idx: number) => (
               <div key={idx} className="bg-slate-100/50 p-3 rounded-xl dark:bg-slate-800/80 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0">
-                  <span className="text-xs">👶</span>
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <span className="text-sm">👶</span>
                 </div>
-                <div className="min-w-0">
-                  <span className="text-sm font-bold text-slate-900 dark:text-white block truncate">{child.name}</span>
-                  {child.phone && (
-                    <a href={`tel:${child.phone}`} className="text-xs text-slate-500 font-mono dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 underline-offset-2">
-                      {child.phone}
-                    </a>
-                  )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white block truncate">{child.name}</span>
+                    {child.dob && (
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-200/50 dark:bg-slate-700/50 px-1.5 py-0.5 rounded">
+                        {calculateAge(child.dob)}y
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    {child.dob && (
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Born: {child.dob}
+                      </span>
+                    )}
+                    {child.phone && (
+                      <a href={`tel:${child.phone}`} className="text-xs text-indigo-600 font-mono dark:text-indigo-400 hover:underline decoration-indigo-500/30 underline-offset-2">
+                        {child.phone}
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

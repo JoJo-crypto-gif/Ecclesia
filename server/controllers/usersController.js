@@ -44,7 +44,7 @@ const UsersController = {
       if (!sessionUser) {
         return res.status(401).json({ success: false, error: { message: 'Authentication required' } });
       }
-      const { name, email } = req.body;
+      const { name, email, mfaEnabled } = req.body;
       if (!name || !email) {
         return res.status(400).json({
           success: false,
@@ -58,12 +58,17 @@ const UsersController = {
          return res.status(409).json({ success: false, error: { message: 'Email is already in use by another account' }});
       }
 
-      const updatedUser = await UsersModel.update(sessionUser.id, { name, email: normalizedEmail });
+      const updatedUser = await UsersModel.update(sessionUser.id, { 
+        name, 
+        email: normalizedEmail,
+        mfaEnabled: mfaEnabled !== undefined ? Boolean(mfaEnabled) : sessionUser.mfaEnabled
+      });
       
       req.session.user = {
         ...sessionUser,
         name: updatedUser.name,
-        email: updatedUser.email
+        email: updatedUser.email,
+        mfaEnabled: updatedUser.mfa_enabled
       };
 
       return res.json({ success: true, data: toSafeUser(updatedUser) });
@@ -193,6 +198,20 @@ const UsersController = {
       next(err);
     }
   },
+  async updateUser(req, res, next) {
+    try {
+      const { mfaEnabled } = req.body;
+      const updated = await UsersModel.update(req.params.id, {
+        mfaEnabled: mfaEnabled !== undefined ? Boolean(mfaEnabled) : undefined
+      });
+      if (!updated) {
+        return res.status(404).json({ success: false, error: { message: 'User not found' } });
+      }
+      return res.json({ success: true, data: toSafeUser(updated) });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
 
 function toSafeUser(user) {
@@ -207,7 +226,8 @@ function toSafeUser(user) {
     zoneId: user.zone_id,
     firstName: user.first_name,
     lastName: user.last_name,
-    createdAt: user.created_at
+    createdAt: user.created_at,
+    mfaEnabled: user.mfa_enabled
   };
 }
 

@@ -182,6 +182,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
       case MemberStatus.Active: return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
       case MemberStatus.Inactive: return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/50 dark:text-slate-400 dark:border-slate-600';
       case MemberStatus.Visitor: return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+      case MemberStatus.ExMember: return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
       default: return 'bg-slate-100 text-slate-600';
     }
   };
@@ -385,7 +386,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                           <div className="flex items-center gap-4">
                             <div className="relative">
                               <img src={member.avatarUrl || `https://ui-avatars.com/api/?name=${member.firstName}+${member.lastName}&background=random&color=fff`} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm dark:border-slate-700" />
-                              <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${member.status === MemberStatus.Active ? 'bg-emerald-500' : member.status === MemberStatus.Inactive ? 'bg-slate-400' : 'bg-amber-500'} dark:border-slate-800`}></div>
+                              <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${member.status === MemberStatus.Active ? 'bg-emerald-500' : member.status === MemberStatus.Inactive ? 'bg-slate-400' : member.status === MemberStatus.ExMember ? 'bg-rose-500' : 'bg-amber-500'} dark:border-slate-800`}></div>
                             </div>
                             <div>
                               <div className="font-bold text-slate-900 dark:text-slate-100">{getMemberDisplayName(member)}</div>
@@ -416,7 +417,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${getStatusBadgeStyles(member.status)}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${member.status === MemberStatus.Active ? 'bg-emerald-500' : member.status === MemberStatus.Inactive ? 'bg-slate-500' : 'bg-amber-500'}`}></span>
+                            <span className={`w-1.5 h-1.5 rounded-full ${member.status === MemberStatus.Active ? 'bg-emerald-500' : member.status === MemberStatus.Inactive ? 'bg-slate-500' : member.status === MemberStatus.ExMember ? 'bg-rose-500' : 'bg-amber-500'}`}></span>
                             {member.status}
                           </span>
                         </td>
@@ -491,7 +492,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                         <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-md dark:bg-slate-900">
                           <img src={member.avatarUrl || `https://ui-avatars.com/api/?name=${member.firstName}+${member.lastName}&background=random&color=fff`} className="w-full h-full rounded-xl object-cover" alt="" />
                         </div>
-                        <div className={`absolute -bottom-1 -right-1 w-5 h-5 border-4 border-white rounded-full ${member.status === MemberStatus.Active ? 'bg-emerald-500' : member.status === MemberStatus.Inactive ? 'bg-slate-400' : 'bg-amber-500'} dark:border-slate-900`}></div>
+                        <div className={`absolute -bottom-1 -right-1 w-5 h-5 border-4 border-white rounded-full ${member.status === MemberStatus.Active ? 'bg-emerald-500' : member.status === MemberStatus.Inactive ? 'bg-slate-400' : member.status === MemberStatus.ExMember ? 'bg-rose-500' : 'bg-amber-500'} dark:border-slate-900`}></div>
                       </div>
                       <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${getStatusBadgeStyles(member.status)}`}>{member.status}</span>
                     </div>
@@ -581,6 +582,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                 <option value={MemberStatus.Active}>Active</option>
                 <option value={MemberStatus.Inactive}>Inactive</option>
                 <option value={MemberStatus.Visitor}>Visitor</option>
+                <option value={MemberStatus.ExMember}>Ex-member</option>
               </select>
             </div>
           )}

@@ -11,6 +11,7 @@ const loginRateLimiter = createIpRateLimiter({
 });
 
 router.post('/login', loginRateLimiter, AuthController.login);
+router.post('/verify-mfa', loginRateLimiter, AuthController.verifyMfa);
 router.post('/logout', AuthController.logout);
 router.get('/me', AuthController.me);
 

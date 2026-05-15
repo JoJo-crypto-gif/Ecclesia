@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
+import { useAuth } from '../context/AuthContext';
 
 interface LoginProps {
-  onLogin: (email: string, password: string) => Promise<{ success: boolean; role?: 'admin' | 'zone_leader'; error?: string }>;
+  onLogin: (email: string, password: string) => Promise<{ success: boolean; role?: 'admin' | 'zone_leader'; error?: string; mfaRequired?: boolean; userId?: string }>;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -13,17 +14,55 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [userId, setUserId] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const { login } = useAuth();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
     const result = await onLogin(email, password);
     setIsSubmitting(false);
+    
     if (result.success) {
-      const target = result.role === 'zone_leader' ? '/zone-dashboard' : '/';
-      navigate(target);
+      if (result.mfaRequired) {
+        setMfaRequired(true);
+        setUserId(result.userId!);
+      } else {
+        const target = result.role === 'zone_leader' ? '/zone-dashboard' : '/';
+        navigate(target);
+      }
     } else {
       setError(result.error || 'Login failed');
+    }
+  };
+
+  const handleMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/verify-mfa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userId, code: mfaCode }),
+      });
+      const data = await res.json();
+      setIsSubmitting(false);
+      
+      if (res.ok && data.success) {
+        login(data.data);
+        const target = data.data.role === 'zone_leader' ? '/zone-dashboard' : '/';
+        navigate(target);
+      } else {
+        setError(data.error?.message || 'Invalid code');
+      }
+    } catch {
+      setIsSubmitting(false);
+      setError('Verification failed');
     }
   };
 
@@ -37,47 +76,91 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <Logo size="lg" className="shadow-2xl shadow-indigo-600/40 rounded-2xl sm:scale-110" />
            </div>
            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight dark:text-white leading-none">Ecclesia Manager</h1>
-           <p className="text-slate-500 mt-3 font-medium text-sm sm:text-base dark:text-slate-400">Welcome back, please sign in.</p>
+           <p className="text-slate-500 mt-3 font-medium text-sm sm:text-base dark:text-slate-400">
+             {mfaRequired ? 'Enter the security code sent to your email.' : 'Welcome back, please sign in.'}
+           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-1">
-            <label className="block text-sm font-bold text-slate-700 ml-1 dark:text-slate-300">Email Address</label>
-            <input 
-              type="email" 
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-5 py-3 border border-slate-200 bg-slate-50 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-transparent focus:outline-none transition-all font-medium text-slate-800 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:focus:bg-slate-600"
-              placeholder="admin@church.com"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="block text-sm font-bold text-slate-700 ml-1 dark:text-slate-300">Password</label>
-            <input 
-              type="password" 
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-5 py-3.5 border border-slate-200 bg-slate-50 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-transparent focus:outline-none transition-all font-medium text-slate-800 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:focus:bg-slate-600"
-              placeholder="••••••••"
-            />
-          </div>
-          
-          {error && (
-            <div className="bg-rose-50 text-rose-600 border border-rose-100 text-sm font-semibold px-4 py-3 rounded-xl dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-900/40">
-              {error}
+        {!mfaRequired ? (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-1">
+              <label className="block text-sm font-bold text-slate-700 ml-1 dark:text-slate-300">Email Address</label>
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-5 py-3 border border-slate-200 bg-slate-50 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-transparent focus:outline-none transition-all font-medium text-slate-800 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:focus:bg-slate-600"
+                placeholder="admin@church.com"
+              />
             </div>
-          )}
+            <div className="space-y-1">
+              <label className="block text-sm font-bold text-slate-700 ml-1 dark:text-slate-300">Password</label>
+              <input 
+                type="password" 
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-5 py-3.5 border border-slate-200 bg-slate-50 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-transparent focus:outline-none transition-all font-medium text-slate-800 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:focus:bg-slate-600"
+                placeholder="••••••••"
+              />
+            </div>
+            
+            {error && (
+              <div className="bg-rose-50 text-rose-600 border border-rose-100 text-sm font-semibold px-4 py-3 rounded-xl dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-900/40">
+                {error}
+              </div>
+            )}
 
-          <button 
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 hover:-translate-y-0.5 active:translate-y-0 mt-2 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:shadow-none"
-          >
-            {isSubmitting ? 'Signing In…' : 'Sign In to Dashboard'}
-          </button>
-        </form>
+            <button 
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 hover:-translate-y-0.5 active:translate-y-0 mt-2 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:shadow-none"
+            >
+              {isSubmitting ? 'Signing In…' : 'Sign In to Dashboard'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleMfaSubmit} className="space-y-6 animate-enter">
+            <div className="space-y-1">
+              <label className="block text-sm font-bold text-slate-700 ml-1 dark:text-slate-300">Security Code</label>
+              <input 
+                type="text" 
+                required
+                maxLength={6}
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                className="w-full px-5 py-3.5 border border-slate-200 bg-slate-50 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-transparent focus:outline-none transition-all font-mono text-center text-2xl tracking-[0.5em] text-slate-800 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:focus:bg-slate-600"
+                placeholder="000000"
+              />
+            </div>
+
+            {error && (
+              <div className="bg-rose-50 text-rose-600 border border-rose-100 text-sm font-semibold px-4 py-3 rounded-xl dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-900/40">
+                {error}
+              </div>
+            )}
+
+            <button 
+              type="submit"
+              disabled={isSubmitting || mfaCode.length !== 6}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 hover:-translate-y-0.5 active:translate-y-0 mt-2 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:shadow-none"
+            >
+              {isSubmitting ? 'Verifying…' : 'Verify Code'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMfaRequired(false);
+                setMfaCode('');
+                setError('');
+              }}
+              className="w-full text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-200 mt-4"
+            >
+              Back to Login
+            </button>
+          </form>
+        )}
 
         <div className="mt-8 text-center bg-slate-50/50 p-4 rounded-2xl border border-slate-100 dark:bg-slate-900/30 dark:border-slate-800">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1.5 dark:text-slate-500">Need Access?</p>

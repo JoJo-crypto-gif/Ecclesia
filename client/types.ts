@@ -3,6 +3,7 @@ export enum MemberStatus {
   Active = 'Active',
   Inactive = 'Inactive',
   Visitor = 'Visitor',
+  ExMember = 'Ex-member',
 }
 
 export interface Zone {
@@ -29,6 +30,7 @@ export interface Member {
   joinDate: string;
   avatarUrl?: string;
   notes?: string;
+  exMemberReason?: string;
   
   // New detailed fields
   dob?: string;
@@ -63,6 +65,7 @@ export interface Member {
 export interface MemberChild {
   name: string;
   phone?: string;
+  dob?: string;
 }
 
 export interface DashboardStats {

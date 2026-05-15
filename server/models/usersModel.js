@@ -30,6 +30,7 @@ const UsersModel = {
     const result = await query(`
       SELECT 
         u.id, u.name, u.email, u.role, u.member_id, u.zone_id, u.created_at, u.role_id,
+        u.mfa_enabled,
         r.name as role_name,
         m.first_name, m.last_name
       FROM users u
@@ -60,6 +61,9 @@ const UsersModel = {
       roleId: 'role_id',
       memberId: 'member_id',
       zoneId: 'zone_id',
+      mfaEnabled: 'mfa_enabled',
+      mfaCode: 'mfa_code',
+      mfaCodeExpiresAt: 'mfa_code_expires_at',
     };
 
     const setClauses = [];
