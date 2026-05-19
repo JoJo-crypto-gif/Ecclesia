@@ -10,6 +10,7 @@ import { MemberStatus } from '../types';
 
 import { useNavigate } from 'react-router-dom';
 import ReportGenerationModal from '../components/reports/ReportGenerationModal';
+import { apiFetch } from '../utils/api';
 
 const Dashboard: React.FC = () => {
   const { stats, members, zones, theme, events } = useData();
@@ -30,8 +31,8 @@ const Dashboard: React.FC = () => {
     const fetchInsights = async () => {
       try {
         const [zhRes, demoRes] = await Promise.all([
-          fetch('/api/attendance/zone-health', { credentials: 'include' }),
-          fetch('/api/attendance/demographics', { credentials: 'include' }),
+          apiFetch('/api/attendance/zone-health'),
+          apiFetch('/api/attendance/demographics'),
         ]);
         if (zhRes.ok) {
           const zhData = await zhRes.json();
@@ -61,7 +62,7 @@ const Dashboard: React.FC = () => {
                 query.append('eventId', selectedEventId);
             }
 
-            const res = await fetch(`/api/attendance/trends?${query}`, { credentials: 'include' });
+            const res = await apiFetch(`/api/attendance/trends?${query}`);
             if (res.ok) {
                 const data = await res.json();
                 setTrendData(data.data);

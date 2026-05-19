@@ -5,6 +5,7 @@ import {
 import Modal from '../Modal';
 import { ChurchEvent, EventInstance, Member, AttendanceRecord } from '../../types';
 import { useData } from '../../context/DataContext';
+import { apiFetch } from '../../utils/api';
 
 interface ManualCheckInModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ const ManualCheckInModal: React.FC<ManualCheckInModalProps> = ({
   useEffect(() => {
     if (isOpen && instance) {
       setLoading(true);
-      fetch(`/api/attendance/instance/${instance.id}`, { credentials: 'include' })
+      apiFetch(`/api/attendance/instance/${instance.id}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -53,7 +54,7 @@ const ManualCheckInModal: React.FC<ManualCheckInModalProps> = ({
     await onToggleAttendance(memberId, isPresent);
     // Refetch attendance
     if (instance) {
-      const res = await fetch(`/api/attendance/instance/${instance.id}`, { credentials: 'include' });
+      const res = await apiFetch(`/api/attendance/instance/${instance.id}`);
       const data = await res.json();
       if (data.success) {
         setAttendanceRecords(data.data);

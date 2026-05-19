@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../utils/api';
 
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<{ success: boolean; role?: 'admin' | 'zone_leader'; error?: string; mfaRequired?: boolean; userId?: string }>;
@@ -44,10 +45,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError('');
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/auth/verify-mfa', {
+      const res = await apiFetch('/api/auth/verify-mfa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ userId, code: mfaCode }),
       });
       const data = await res.json();

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { CheckCircle2, User, ArrowRight, AlertCircle, Calendar } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 const CheckIn: React.FC = () => {
   const { instanceId } = useParams();
@@ -21,7 +22,7 @@ const CheckIn: React.FC = () => {
   useEffect(() => {
     if (!instanceId) return;
     
-    fetch(`/api/events/instances/${instanceId}`, { credentials: 'include' })
+    apiFetch(`/api/events/instances/${instanceId}`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
@@ -80,10 +81,9 @@ const CheckIn: React.FC = () => {
         // --- VISITOR FLOW ---
         // 1. Register Visitor as a Member (Status: Visitor)
         // 2. Check them in
-        const res = await fetch('/api/members/visitors', {
+        const res = await apiFetch('/api/members/visitors', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
             body: JSON.stringify({
                 instanceId,
                 firstName: visitorForm.firstName,

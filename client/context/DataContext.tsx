@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { Member, Zone, DashboardStats, MemberStatus, ChurchEvent, EventInstance, AttendanceRecord, Message, ManualMessagePayload } from '../types';
+import { apiFetch } from '../utils/api';
 
 // Pagination Interface
 export interface Pagination {
@@ -78,9 +79,6 @@ interface DataContextType {
 }
 
 const API_BASE = '/api';
-const apiFetch = (input: RequestInfo, init: RequestInit = {}) => {
-  return fetch(input, { credentials: 'include', ...init });
-};
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 

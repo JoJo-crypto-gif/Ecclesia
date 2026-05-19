@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, PermissionSet } from '../types';
+import { apiFetch } from '../utils/api';
 
 interface AuthContextType {
   user: User | null;
@@ -18,7 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Check if user is logged in
-    fetch('/api/auth/me')
+    apiFetch('/api/auth/me')
       .then(res => res.json())
       .then(data => {
         if (data.success) {

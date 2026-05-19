@@ -19,6 +19,7 @@ import Settings from './pages/Settings';
 import Reports from './pages/Reports';
 import MobileHeader from './components/MobileHeader';
 import { useLocation } from 'react-router-dom';
+import { apiFetch } from './utils/api';
 
 // Protected Route Wrapper
 interface ProtectedLayoutProps {
@@ -88,10 +89,9 @@ const AppInner: React.FC = () => {
 
   const handleLogin = async (email: string, password: string) => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
@@ -112,7 +112,7 @@ const AppInner: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await apiFetch('/api/auth/logout', { method: 'POST' });
     } catch {
       // ignore
     } finally {

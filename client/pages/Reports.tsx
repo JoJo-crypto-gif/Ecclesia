@@ -8,6 +8,7 @@ import ViewMemberModal from '../components/members/ViewMemberModal';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
+import { apiFetch } from '../utils/api';
 
 const calculateAge = (dobString?: string): number | null => {
   if (!dobString) return null;
@@ -134,9 +135,9 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
       const fetchOverview = async () => {
         try {
           const [overviewRes, zoneRes, demoRes] = await Promise.all([
-            fetch('/api/attendance/report-overview', { credentials: 'include' }).then(r => r.json()),
-            fetch('/api/attendance/zone-health', { credentials: 'include' }).then(r => r.json()),
-            fetch('/api/attendance/demographics', { credentials: 'include' }).then(r => r.json())
+            apiFetch('/api/attendance/report-overview').then(r => r.json()),
+            apiFetch('/api/attendance/zone-health').then(r => r.json()),
+            apiFetch('/api/attendance/demographics').then(r => r.json())
           ]);
           if (overviewRes.success) setOverviewStats(overviewRes.data);
           if (zoneRes.success) setZoneHealth(zoneRes.data);
@@ -165,8 +166,8 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
         setLoadingMemberData(true);
         try {
           const [analyticsRes, historyRes] = await Promise.all([
-            fetch(`/api/attendance/member/${selectedMember.id}/analytics`, { credentials: 'include' }).then(r => r.json()),
-            fetch(`/api/attendance/member/${selectedMember.id}`, { credentials: 'include' }).then(r => r.json())
+            apiFetch(`/api/attendance/member/${selectedMember.id}/analytics`).then(r => r.json()),
+            apiFetch(`/api/attendance/member/${selectedMember.id}`).then(r => r.json())
           ]);
           if (analyticsRes.success) setMemberAnalytics(analyticsRes.data);
           if (historyRes.success) setMemberHistory(historyRes.data);
@@ -195,7 +196,7 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
   useEffect(() => {
     if (activeTab === 'event' && selectedReportInstanceId) {
       setLoadingEventAttendance(true);
-      fetch(`/api/attendance/instance/${selectedReportInstanceId}`, { credentials: 'include' })
+      apiFetch(`/api/attendance/instance/${selectedReportInstanceId}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) {

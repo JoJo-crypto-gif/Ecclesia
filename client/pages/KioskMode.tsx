@@ -4,6 +4,7 @@ import { Html5Qrcode } from "html5-qrcode";
 import { useData } from '../context/DataContext';
 import { X, CheckCircle2, AlertCircle, ScanLine, User } from 'lucide-react';
 import { Member, EventInstance, ChurchEvent } from '../types';
+import { apiFetch } from '../utils/api';
 
 // Simple beep sound (base64)
 const BEEP_AUDIO = "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"; // Placeholder short blip
@@ -36,7 +37,7 @@ const KioskMode: React.FC = () => {
   // Fetch instance info
   useEffect(() => {
     if (!instanceId) return;
-    fetch(`/api/events/instances/${instanceId}`, { credentials: 'include' })
+    apiFetch(`/api/events/instances/${instanceId}`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {

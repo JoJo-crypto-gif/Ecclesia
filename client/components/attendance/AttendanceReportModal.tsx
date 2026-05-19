@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Modal from '../Modal';
 import { ChurchEvent, EventInstance, Member, AttendanceRecord } from '../../types';
+import { apiFetch } from '../../utils/api';
 
 interface AttendanceReportModalProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ const AttendanceReportModal: React.FC<AttendanceReportModalProps> = ({
       setReportTab('present');
       
       // Fetch instances for this event
-      fetch(`/api/events/${event.id}/instances`, { credentials: 'include' })
+      apiFetch(`/api/events/${event.id}/instances`)
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -51,7 +52,7 @@ const AttendanceReportModal: React.FC<AttendanceReportModalProps> = ({
   useEffect(() => {
     if (selectedInstanceId) {
       setLoading(true);
-      fetch(`/api/attendance/instance/${selectedInstanceId}`, { credentials: 'include' })
+      apiFetch(`/api/attendance/instance/${selectedInstanceId}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) {

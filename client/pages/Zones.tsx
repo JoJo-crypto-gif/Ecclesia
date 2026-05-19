@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Zone, Member, MemberStatus } from '../types';
 import { Plus, Edit2, Trash2, MapPin, Clock, ChevronRight, Search, User, Mail, Phone, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import Modal from '../components/Modal';
+import { apiFetch } from '../utils/api';
 
 const Zones: React.FC = () => {
   const { hasPermission } = useAuth();
@@ -129,10 +130,9 @@ const Zones: React.FC = () => {
 
       if (savedZone && leaderLoginEmail && leaderLoginPassword) {
         const leader = membersList.find(m => m.id === formData.leaderId);
-        const res = await fetch('/api/users/zone-leader', {
+        const res = await apiFetch('/api/users/zone-leader', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify({
             email: leaderLoginEmail,
             password: leaderLoginPassword,

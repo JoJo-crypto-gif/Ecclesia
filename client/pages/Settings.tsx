@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, ImageIcon, RotateCcw, User, ShieldCheck, School, Zap, BellRing, Settings as SettingsIcon, Users, Trash2, Plus, Search, Loader2, ChevronDown } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 const parseBoolean = (value: unknown, fallback = true) => {
   if (value === null || value === undefined) return fallback;
@@ -73,7 +74,7 @@ const Settings: React.FC = () => {
     setAutomationMessage('');
     setAutomationStatus('loading');
     try {
-      const res = await fetch('/api/settings', { credentials: 'include' });
+      const res = await apiFetch('/api/settings');
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data?.success) {
@@ -115,7 +116,7 @@ const Settings: React.FC = () => {
     setLoadingRoles(true);
     setRolesError('');
     try {
-      const res = await fetch('/api/roles', { credentials: 'include' });
+      const res = await apiFetch('/api/roles');
       const data = await res.json();
       if (data.success) {
         setRoles(data.data);
@@ -133,7 +134,7 @@ const Settings: React.FC = () => {
     setLoadingUsers(true);
     setUsersError('');
     try {
-      const res = await fetch('/api/users', { credentials: 'include' });
+      const res = await apiFetch('/api/users');
       const data = await res.json();
       if (data.success) {
         setUsers(data.data);
@@ -154,7 +155,7 @@ const Settings: React.FC = () => {
     }
     setSearchingMembers(true);
     try {
-      const res = await fetch(`/api/members?search=${encodeURIComponent(query)}&limit=5`, { credentials: 'include' });
+      const res = await apiFetch(`/api/members?search=${encodeURIComponent(query)}&limit=5`);
       const data = await res.json();
       if (data.success) {
         setSearchResults(data.data);
@@ -170,7 +171,7 @@ const Settings: React.FC = () => {
     // Load current profile
     const loadProfile = async () => {
       try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        const res = await apiFetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
           if (data.success && data.data) {
@@ -222,10 +223,9 @@ const Settings: React.FC = () => {
 
     setPasswordStatus('saving');
     try {
-      const res = await fetch('/api/users/me/password', {
+      const res = await apiFetch('/api/users/me/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json();
@@ -257,10 +257,9 @@ const Settings: React.FC = () => {
 
     setProfileStatus('saving');
     try {
-      const res = await fetch('/api/users/me', {
+      const res = await apiFetch('/api/users/me', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ name, email, mfaEnabled: userMfaEnabled }),
       });
       const data = await res.json();
@@ -292,10 +291,9 @@ const Settings: React.FC = () => {
         absentee_sms_enabled: String(automationSettings.absenteeSmsEnabled)
       };
 
-      const res = await fetch('/api/settings', {
+      const res = await apiFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -336,10 +334,9 @@ const Settings: React.FC = () => {
         mfa_enforced_roles: JSON.stringify(mfaSettings.enforcedRoles)
       };
 
-      const res = await fetch('/api/settings', {
+      const res = await apiFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -401,10 +398,9 @@ const Settings: React.FC = () => {
       // Only send logo if it's a data URL (or empty to reset)
       payload.church_logo = churchLogo;
 
-      const res = await fetch('/api/settings', {
+      const res = await apiFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -444,10 +440,9 @@ const Settings: React.FC = () => {
 
     setSavingUser(true);
     try {
-      const res = await fetch('/api/users', {
+      const res = await apiFetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(userForm),
       });
       const data = await res.json();
@@ -469,9 +464,8 @@ const Settings: React.FC = () => {
   const handleDeleteUser = async (id: string) => {
     if (!confirm('Are you sure you want to remove this user? They will lose all access.')) return;
     try {
-      const res = await fetch(`/api/users/${id}`, {
+      const res = await apiFetch(`/api/users/${id}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {
@@ -486,10 +480,9 @@ const Settings: React.FC = () => {
 
   const handleToggleUserMfa = async (id: string, currentMfa: boolean) => {
     try {
-      const res = await fetch(`/api/users/${id}`, {
+      const res = await apiFetch(`/api/users/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ mfaEnabled: !currentMfa }),
       });
       const data = await res.json();
@@ -1369,10 +1362,9 @@ const Settings: React.FC = () => {
                   try {
                     const method = editingRole.id ? 'PUT' : 'POST';
                     const url = editingRole.id ? `/api/roles/${editingRole.id}` : '/api/roles';
-                    const res = await fetch(url, {
+                    const res = await apiFetch(url, {
                       method,
                       headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
                       body: JSON.stringify(editingRole)
                     });
                     const data = await res.json();

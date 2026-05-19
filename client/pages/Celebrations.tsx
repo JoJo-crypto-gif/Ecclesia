@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Gift, Heart, PartyPopper, Sparkles } from 'lucide-react';
 import { User } from '../types';
+import { apiFetch } from '../utils/api';
 
 interface CelebrationsProps {
   user: User | null;
@@ -51,8 +52,8 @@ const Celebrations: React.FC<CelebrationsProps> = ({ user }) => {
       setTodayLoading(true);
       try {
         const [bRes, aRes] = await Promise.all([
-          fetch(`/api/members/celebrations?type=birthday&period=week&window=today`, { credentials: 'include' }),
-          fetch(`/api/members/celebrations?type=anniversary&period=week&window=today`, { credentials: 'include' }),
+          apiFetch(`/api/members/celebrations?type=birthday&period=week&window=today`),
+          apiFetch(`/api/members/celebrations?type=anniversary&period=week&window=today`),
         ]);
         const bData = await bRes.json();
         const aData = await aRes.json();
@@ -78,9 +79,7 @@ const Celebrations: React.FC<CelebrationsProps> = ({ user }) => {
           period,
           window: windowFilter,
         });
-        const res = await fetch(`/api/members/celebrations?${params.toString()}`, {
-          credentials: 'include',
-        });
+        const res = await apiFetch(`/api/members/celebrations?${params.toString()}`);
         const data = await res.json();
         if (!res.ok || !data.success) {
           throw new Error(data?.error?.message || 'Failed to fetch celebrations');

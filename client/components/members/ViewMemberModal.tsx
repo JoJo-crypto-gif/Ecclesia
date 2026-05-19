@@ -9,6 +9,7 @@ import Modal from '../Modal';
 import { Member, Zone, MemberStatus, MemberChild } from '../../types';
 import { useData } from '../../context/DataContext';
 import { getMemberDisplayName, getMemberTitles } from '../../utils/memberName';
+import { apiFetch } from '../../utils/api';
 
 interface MemberAnalytics {
   totalAttended: number;
@@ -389,7 +390,7 @@ const AttendanceTab: React.FC<{ member: Member }> = ({ member }) => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/attendance/member/${member.id}/analytics`, { credentials: 'include' });
+        const res = await apiFetch(`/api/attendance/member/${member.id}/analytics`);
         if (!res.ok) throw new Error('Failed to load analytics');
         const data = await res.json();
         if (!cancelled && data.success) {
