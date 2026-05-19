@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, ImageIcon, RotateCcw, User, ShieldCheck, School, Zap, BellRing, Settings as SettingsIcon, Users, Trash2, Plus, Search, Loader2, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const parseBoolean = (value: unknown, fallback = true) => {
   if (value === null || value === undefined) return fallback;
@@ -8,6 +9,8 @@ const parseBoolean = (value: unknown, fallback = true) => {
 };
 
 const Settings: React.FC = () => {
+  const { hasPermission } = useAuth();
+
   // Password State
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -20,8 +23,13 @@ const Settings: React.FC = () => {
   const [email, setEmail] = useState('');
   const [profileStatus, setProfileStatus] = useState<'idle' | 'loading' | 'saving' | 'success' | 'error'>('loading');
   const [profileMessage, setProfileMessage] = useState('');
-  const [userRole, setUserRole] = useState<'admin' | 'zone_leader' | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [userMfaEnabled, setUserMfaEnabled] = useState(false);
+  const canManageSettings =
+    userRole === 'admin' ||
+    hasPermission('settings', 'create') ||
+    hasPermission('settings', 'edit') ||
+    hasPermission('settings', 'delete');
 
   // Church Branding State (Admin Only)
   const [churchName, setChurchName] = useState('Ecclesia');
@@ -179,7 +187,13 @@ const Settings: React.FC = () => {
             setEmail(data.data.email || '');
             setUserRole(data.data.role || null);
             setUserMfaEnabled(data.data.mfaEnabled || false);
-            if (data.data.role === 'admin') {
+            const hasSettingsAccess = Boolean(
+              data.data.role === 'admin' ||
+              data.data.permissions?.settings?.create ||
+              data.data.permissions?.settings?.edit ||
+              data.data.permissions?.settings?.delete
+            );
+            if (hasSettingsAccess) {
               await loadAutomationSettings();
             }
           }
@@ -498,7 +512,7 @@ const Settings: React.FC = () => {
 
   const tabs = [
     { id: 'profile', label: 'Profile & Security', icon: User },
-    ...(userRole === 'admin' ? [
+    ...(canManageSettings ? [
       { id: 'branding', label: 'Church Branding', icon: School },
       { id: 'automation', label: 'Automation Hub', icon: Zap },
       { id: 'security', label: 'Security & MFA', icon: ShieldCheck },
@@ -573,7 +587,7 @@ const Settings: React.FC = () => {
               <span>Profile & Security</span>
             </button>
             
-            {userRole === 'admin' && (
+            {canManageSettings && (
               <>
                 <button onClick={() => setActiveTab('branding')} className={tabClass('branding')}>
                   <School size={18} />
@@ -729,7 +743,7 @@ const Settings: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'branding' && userRole === 'admin' && (
+          {activeTab === 'branding' && canManageSettings && (
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
@@ -807,7 +821,7 @@ const Settings: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'automation' && userRole === 'admin' && (
+          {activeTab === 'automation' && canManageSettings && (
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
@@ -880,7 +894,7 @@ const Settings: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'security' && userRole === 'admin' && (
+          {activeTab === 'security' && canManageSettings && (
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
@@ -951,7 +965,7 @@ const Settings: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'roles' && userRole === 'admin' && (
+          {activeTab === 'roles' && canManageSettings && (
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex justify-between items-center mb-8">
                 <div>
@@ -1025,7 +1039,7 @@ const Settings: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'users' && userRole === 'admin' && (
+          {activeTab === 'users' && canManageSettings && (
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex justify-between items-center mb-8">
                 <div>

@@ -34,8 +34,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const hasPermission = React.useCallback((module: string, action: keyof PermissionSet): boolean => {
     if (!user) return false;
-    // Admins have override for everything if needed, 
-    // but the backend permissions object should already be full for admins.
+    if (user.role === 'admin') return true;
+
     const modulePerms = user.permissions?.[module];
     if (!modulePerms) return false;
     return !!modulePerms[action];
