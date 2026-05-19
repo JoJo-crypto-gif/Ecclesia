@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict z58gRnVTSQWbUzaiFMX59x0al5Jfbbdv2LqhcnOT7NHkSCrEV8S2hcT8RrDm727
+\restrict 0uVhl8FU65VX4L8BbcYQuonPWpC4bfwmJz4sUrK317hwGs9sg3pbgJaAXKD4333
 
 -- Dumped from database version 14.20 (Homebrew)
 -- Dumped by pg_dump version 14.20 (Homebrew)
@@ -657,5 +657,4 @@ ALTER TABLE ONLY public.zones
 -- PostgreSQL database dump complete
 --
 
-\unrestrict z58gRnVTSQWbUzaiFMX59x0al5Jfbbdv2LqhcnOT7NHkSCrEV8S2hcT8RrDm727
-
+\unrestrict 0uVhl8FU65VX4L8BbcYQuonPWpC4bfwmJz4sUrK317hwGs9sg3pbgJaAXKD4333
