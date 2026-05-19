@@ -14,6 +14,13 @@ import { initCronJobs } from './services/cronService.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
+const allowedOrigins = isProduction
+  ? (process.env.ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  : ['http://localhost:3000', 'https://localhost:3000', 'http://localhost:5173', 'https://localhost:5173'];
+const sessionCookieSameSite = (process.env.SESSION_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')).toLowerCase();
 
 if (isProduction && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET must be set in production.');
@@ -30,9 +37,7 @@ app.use(helmet());
 
 // ─── CORS ────────────────────────────────────────────────
 app.use(cors({
-  origin: isProduction
-    ? process.env.ALLOWED_ORIGINS?.split(',')
-    : ['http://localhost:3000', 'https://localhost:3000', 'http://localhost:5173', 'https://localhost:5173'],
+  origin: allowedOrigins,
   credentials: true,
 }));
 
@@ -51,7 +56,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: sessionCookieSameSite,
     secure: isProduction,
     maxAge: 1000 * 60 * 60 * 12, // 12 hours
   },

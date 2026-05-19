@@ -4,6 +4,8 @@ import SettingsModel from '../models/settingsModel.js';
 import EmailService from '../services/emailService.js';
 
 const SALT_ROUNDS = 10;
+const isProduction = process.env.NODE_ENV === 'production';
+const sessionCookieSameSite = (process.env.SESSION_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')).toLowerCase();
 
 const AuthController = {
   async login(req, res, next) {
@@ -147,7 +149,11 @@ const AuthController = {
         return res.json({ success: true });
       }
       req.session.destroy(() => {
-        res.clearCookie('ecclesia.sid');
+        res.clearCookie('ecclesia.sid', {
+          httpOnly: true,
+          sameSite: sessionCookieSameSite,
+          secure: isProduction,
+        });
         res.json({ success: true });
       });
     } catch (err) {
