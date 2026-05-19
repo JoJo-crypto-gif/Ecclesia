@@ -1,4 +1,5 @@
 import pg from 'pg';
+import fs from 'fs';
 const { Pool } = pg;
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -30,6 +31,21 @@ const rejectUnauthorized = toBool(
   isProduction
 );
 
+let sslConfig = undefined;
+if (useSsl) {
+  sslConfig = { rejectUnauthorized };
+  
+  // If we are strictly enforcing SSL (rejectUnauthorized is true), load the cert
+  if (rejectUnauthorized) {
+    try {
+      // Render stores Secret Files at this exact path
+      sslConfig.ca = fs.readFileSync('/etc/secrets/ca.pem').toString();
+    } catch (err) {
+      console.warn('⚠️ CA certificate not found at /etc/secrets/ca.pem. Connection will likely fail.');
+    }
+  }
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: toInt(process.env.DB_POOL_MAX, 20),
@@ -37,7 +53,7 @@ const pool = new Pool({
   connectionTimeoutMillis: toInt(process.env.DB_CONNECT_TIMEOUT_MS, 5000),
   statement_timeout: toInt(process.env.DB_STATEMENT_TIMEOUT_MS, 30000),
   query_timeout: toInt(process.env.DB_QUERY_TIMEOUT_MS, 30000),
-  ssl: useSsl ? { rejectUnauthorized } : undefined,
+  ssl: sslConfig,
 });
 
 // Log pool errors
