@@ -139,6 +139,10 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
             ) : 'Not specified'}
           </span>
         </div>
+        <div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Highest Education</span>
+          <span className="text-slate-800 font-bold dark:text-slate-200">{member.education || 'Not specified'}</span>
+        </div>
         <div className="col-span-2">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Full Address</span>
           <span className="text-slate-800 font-medium dark:text-slate-200">{member.address || 'Not specified'}</span>

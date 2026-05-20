@@ -61,6 +61,7 @@ export interface Member {
   baptizedBy?: string | null;
   baptismChurch?: string | null;
   brothersKeeper?: string;
+  education?: string;
 
   // Children
   children?: MemberChild[];

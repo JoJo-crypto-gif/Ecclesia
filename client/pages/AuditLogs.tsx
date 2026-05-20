@@ -603,7 +603,7 @@ const AuditLogs: React.FC = () => {
                     <div className="text-sm font-bold text-emerald-800 dark:text-emerald-400">New Resource Instantiated</div>
                     <p className="text-xs text-slate-500">This log captures initial instantiation. Below are the key properties saved:</p>
                     <div className="text-left mt-4 space-y-2.5">
-                      {Object.entries(selectedLog.changes || {}).map(([key, delta]) => (
+                      {(Object.entries(selectedLog.changes || {}) as [string, { old: any; new: any }][]).map(([key, delta]) => (
                         <div key={key} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl shadow-xs">
                           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{formatFieldLabel(key)}</div>
                           <div className="text-xs text-slate-800 dark:text-slate-200">{renderValue(delta.new)}</div>
@@ -619,7 +619,7 @@ const AuditLogs: React.FC = () => {
                     <div className="text-sm font-bold text-rose-800 dark:text-rose-400">Resource Purged</div>
                     <p className="text-xs text-slate-500">This log traces resource deletion. Below are the last captured properties prior to purging:</p>
                     <div className="text-left mt-4 space-y-2.5">
-                      {Object.entries(selectedLog.changes || {}).map(([key, delta]) => (
+                      {(Object.entries(selectedLog.changes || {}) as [string, { old: any; new: any }][]).map(([key, delta]) => (
                         <div key={key} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl shadow-xs">
                           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{formatFieldLabel(key)}</div>
                           <div className="text-xs text-slate-800 dark:text-slate-200">{renderValue(delta.old)}</div>
@@ -633,7 +633,7 @@ const AuditLogs: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {Object.entries(selectedLog.changes).map(([key, delta]) => (
+                    {(Object.entries(selectedLog.changes) as [string, { old: any; new: any }][]).map(([key, delta]) => (
                       <div
                         key={key}
                         className="bg-white dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-900 rounded-2xl overflow-hidden shadow-xs"

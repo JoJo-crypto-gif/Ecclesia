@@ -364,7 +364,8 @@ function transformMember(row) {
     whatsapp: row.whatsapp,
     spouseChurch: row.spouse_church,
     homeTown: row.home_town,
-    brothersKeeper: row.brothers_keeper
+    brothersKeeper: row.brothers_keeper,
+    education: row.education
   };
 }
 

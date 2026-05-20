@@ -15,6 +15,23 @@ const EMPLOYMENT_STATUS_OPTIONS = [
     { value: 'Unemployed', label: 'Unemployed' },
 ];
 
+const EDUCATION_OPTIONS = [
+    { value: 'Basic', label: 'Basic' },
+    { value: 'JHS', label: 'JHS (Junior High School)' },
+    { value: 'SHS', label: 'SHS (Senior High School)' },
+    { value: 'Degree', label: 'Degree' },
+    { value: '2nd Degree', label: '2nd Degree' },
+    { value: 'Masters (MSc)', label: 'Masters (MSc)' },
+    { value: 'Master (MBA)', label: 'Master (MBA)' },
+    { value: 'PhD', label: 'PhD' },
+    { value: 'Other', label: 'Other (Specify below)' },
+];
+
+const isStandardEducation = (val?: string) => {
+    return val ? ['Basic', 'JHS', 'SHS', 'Degree', '2nd Degree', 'Masters (MSc)', 'Master (MBA)', 'PhD'].includes(val) : false;
+};
+
+
 interface MemberWizardModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -241,11 +258,11 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                     if (!child.dob) newErrors.push(`Child ${i + 1} Date of Birth is required.`);
                     if (child.phone && !validatePhone(child.phone)) newErrors.push(`Child ${i + 1} phone must be exactly 10 digits.`);
                 });
-            } else if (currentStep === 4) {
-                if (!formData.status) newErrors.push('Member status is required.');
-                if (formData.status === MemberStatus.ExMember && !formData.exMemberReason) {
-                    newErrors.push('Please specify a reason for the member leaving.');
-                }
+            }
+        } else if (currentStep === 4) {
+            if (!formData.status) newErrors.push('Member status is required.');
+            if (formData.status === MemberStatus.ExMember && !formData.exMemberReason) {
+                newErrors.push('Please specify a reason for the member leaving.');
             }
         }
         setErrors(newErrors);
@@ -303,6 +320,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                 baptizedBy: isBaptized ? (formData.baptizedBy || null) : null,
                 baptismChurch: isBaptized ? (formData.baptismChurch || null) : null,
                 brothersKeeper: isBaptized ? (formData.brothersKeeper || null) : null,
+                education: formData.education?.trim() || null,
             };
 
             const payload = isZoneLocked && lockedZoneId
@@ -363,7 +381,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${currentStep > step ? 'bg-indigo-600 text-white dark:bg-indigo-500' :
                                     currentStep === step ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-110 dark:bg-indigo-500' :
                                         'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
-                                }`}>
+                                 }`}>
                                 {currentStep > step ? <CheckCircle2 size={14} /> : step}
                             </div>
                             <span className={`text-[9px] font-bold uppercase tracking-wider hidden sm:block ${currentStep === step ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-600'}`}>
@@ -1102,16 +1120,6 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                     placeholder="-- Select Source --"
                                 />
                             </div>
-                        </div>
-                    )}
-
-                    {/* STEP 5: PROFILE */}
-                    {currentStep === 5 && (
-                        <div className={`space-y-6 ${direction === 'right' ? 'slide-in-right' : 'slide-in-left'}`}>
-                            <div className="text-center mb-6">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Profile & Background</h3>
-                                <p className="text-slate-500 text-sm dark:text-slate-400">Occupation, baptism details and notes</p>
-                            </div>
 
                             {/* Baptism Details */}
                             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -1202,8 +1210,18 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    )}
 
-                            <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    {/* STEP 5: EMPLOYMENT & BACKGROUND */}
+                    {currentStep === 5 && (
+                        <div className={`space-y-6 ${direction === 'right' ? 'slide-in-right' : 'slide-in-left'}`}>
+                            <div className="text-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Employment & Background</h3>
+                                <p className="text-slate-500 text-sm dark:text-slate-400">Employment, education and profile notes</p>
+                            </div>
+
+                            <div className="space-y-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Employment Status</label>
                                     <CustomSelect
@@ -1275,16 +1293,57 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                         </div>
                                     </div>
                                 )}
-                            </div>
 
-                            <div className="col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Additional Notes</label>
-                                <textarea
-                                    value={formData.notes || ''}
-                                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all h-20 resize-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                    placeholder="Anything else we should know?"
-                                />
+                                {/* Highest Education */}
+                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Highest Education</label>
+                                    {(() => {
+                                        const selectValue = formData.education
+                                            ? (isStandardEducation(formData.education) ? formData.education : 'Other')
+                                            : '';
+                                        const showCustomInput = (formData.education && !isStandardEducation(formData.education)) || selectValue === 'Other';
+
+                                        return (
+                                            <div className="space-y-4">
+                                                <CustomSelect
+                                                    value={selectValue}
+                                                    onChange={val => {
+                                                        if (val === 'Other') {
+                                                            setFormData({ ...formData, education: 'Other' });
+                                                        } else {
+                                                            setFormData({ ...formData, education: val });
+                                                        }
+                                                    }}
+                                                    options={EDUCATION_OPTIONS}
+                                                    placeholder="-- Select Highest Education --"
+                                                />
+                                                {showCustomInput && (
+                                                    <div className="animate-enter">
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Specify Education Level</label>
+                                                        <input
+                                                            type="text"
+                                                            value={formData.education === 'Other' ? '' : formData.education}
+                                                            onChange={e => setFormData({ ...formData, education: e.target.value })}
+                                                            placeholder="e.g. Higher National Diploma, Professional Certificate"
+                                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400 text-slate-600"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Additional Notes */}
+                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Additional Notes</label>
+                                    <textarea
+                                        value={formData.notes || ''}
+                                        onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all h-20 resize-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                                        placeholder="Anything else we should know?"
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}
