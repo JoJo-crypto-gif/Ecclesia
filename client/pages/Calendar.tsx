@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 import { ChevronLeft, ChevronRight, Plus, Clock, Users, MapPin, Calendar as CalendarIcon, Repeat } from 'lucide-react';
 import Modal from '../components/Modal';
+import CustomSelect from '../components/CustomSelect';
 import { ChurchEvent, EventInstance, User } from '../types';
 
 interface CalendarProps {
@@ -258,6 +259,39 @@ const Calendar: React.FC<CalendarProps> = ({ user }) => {
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  const recurrenceOptions = useMemo(() => [
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'biweekly', label: 'Bi-weekly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'yearly', label: 'Yearly' },
+  ], []);
+
+  const dayOfWeekOptions = useMemo(() => dayNames.map((d, i) => ({ value: i, label: d })), [dayNames]);
+
+  const typeOptions = useMemo(() => [
+    { value: 'Service', label: 'Service' },
+    { value: 'Meeting', label: 'Meeting' },
+    { value: 'Special', label: 'Special Event' },
+  ], []);
+
+  const zoneOptions = useMemo(() => [
+    { value: '', label: 'All Zones (Global)' },
+    ...zones.map(zone => ({ value: zone.id, label: zone.name }))
+  ], [zones]);
+
+  const typeOverrideOptions = useMemo(() => [
+    { value: '', label: `Default (${selectedEvent?.type || ''})` },
+    { value: 'Service', label: 'Service' },
+    { value: 'Meeting', label: 'Meeting' },
+    { value: 'Special', label: 'Special Event' },
+  ], [selectedEvent]);
+
+  const statusOptions = useMemo(() => [
+    { value: 'scheduled', label: 'Scheduled' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
+  ], []);
+
   return (
     <div className="space-y-6 animate-enter min-h-[calc(100vh-140px)] flex flex-col pb-10">
       {/* Header */}
@@ -480,26 +514,19 @@ const Calendar: React.FC<CalendarProps> = ({ user }) => {
              <div className="grid grid-cols-2 gap-4">
                <div>
                  <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Frequency</label>
-                 <select 
+                 <CustomSelect
                    value={newEvent.recurrenceRule}
-                   onChange={e => setNewEvent({...newEvent, recurrenceRule: e.target.value as any})}
-                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                 >
-                   <option value="weekly">Weekly</option>
-                   <option value="biweekly">Bi-weekly</option>
-                   <option value="monthly">Monthly</option>
-                   <option value="yearly">Yearly</option>
-                 </select>
+                   onChange={val => setNewEvent({...newEvent, recurrenceRule: val as any})}
+                   options={recurrenceOptions}
+                 />
                </div>
                <div>
                  <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Day of Week</label>
-                 <select 
+                 <CustomSelect
                    value={newEvent.dayOfWeek}
-                   onChange={e => setNewEvent({...newEvent, dayOfWeek: parseInt(e.target.value)})}
-                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                 >
-                   {dayNames.map((d, i) => <option key={i} value={i}>{d}</option>)}
-                 </select>
+                   onChange={val => setNewEvent({...newEvent, dayOfWeek: parseInt(val)})}
+                   options={dayOfWeekOptions}
+                 />
                </div>
              </div>
            ) : (
@@ -515,15 +542,11 @@ const Calendar: React.FC<CalendarProps> = ({ user }) => {
                </div>
                <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Type</label>
-                <select 
+                <CustomSelect
                   value={newEvent.type}
-                  onChange={e => setNewEvent({...newEvent, type: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                >
-                    <option value="Service">Service</option>
-                    <option value="Meeting">Meeting</option>
-                    <option value="Special">Special Event</option>
-                </select>
+                  onChange={val => setNewEvent({...newEvent, type: val})}
+                  options={typeOptions}
+                />
                </div>
              </div>
            )}
@@ -531,31 +554,23 @@ const Calendar: React.FC<CalendarProps> = ({ user }) => {
            {newEvent.isRecurring && (
              <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Type</label>
-              <select 
+              <CustomSelect
                 value={newEvent.type}
-                onChange={e => setNewEvent({...newEvent, type: e.target.value})}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-              >
-                  <option value="Service">Service</option>
-                  <option value="Meeting">Meeting</option>
-                  <option value="Special">Special Event</option>
-              </select>
+                onChange={val => setNewEvent({...newEvent, type: val})}
+                options={typeOptions}
+              />
              </div>
            )}
 
            {user?.role === 'admin' && (
              <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Zone</label>
-              <select 
+              <CustomSelect
                 value={newEvent.zoneId}
-                onChange={e => setNewEvent({ ...newEvent, zoneId: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-              >
-                <option value="">All Zones (Global)</option>
-                {zones.map(zone => (
-                  <option key={zone.id} value={zone.id}>{zone.name}</option>
-                ))}
-              </select>
+                onChange={val => setNewEvent({ ...newEvent, zoneId: val })}
+                options={zoneOptions}
+                placeholder="All Zones (Global)"
+              />
              </div>
            )}
            
@@ -624,33 +639,25 @@ const Calendar: React.FC<CalendarProps> = ({ user }) => {
            </div>
 
            <div className="grid grid-cols-2 gap-4">
-               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Type Override</label>
-                <select 
-                  value={editInstanceForm.typeOverride}
-                  onChange={e => setEditInstanceForm({...editInstanceForm, typeOverride: e.target.value})}
-                  disabled={!canEditSelected}
-                  className={`w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white ${!canEditSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                    <option value="">Default ({selectedEvent?.type})</option>
-                    <option value="Service">Service</option>
-                    <option value="Meeting">Meeting</option>
-                    <option value="Special">Special Event</option>
-                </select>
-               </div>
-               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Status</label>
-                <select 
-                  value={editInstanceForm.status}
-                  onChange={e => setEditInstanceForm({...editInstanceForm, status: e.target.value})}
-                  disabled={!canEditSelected}
-                  className={`w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white ${!canEditSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                    <option value="scheduled">Scheduled</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                </select>
-               </div>
+                <div>
+                 <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Type Override</label>
+                 <CustomSelect
+                   value={editInstanceForm.typeOverride}
+                   onChange={val => setEditInstanceForm({...editInstanceForm, typeOverride: val})}
+                   disabled={!canEditSelected}
+                   options={typeOverrideOptions}
+                   placeholder={`Default (${selectedEvent?.type || ''})`}
+                 />
+                </div>
+                <div>
+                 <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Status</label>
+                 <CustomSelect
+                   value={editInstanceForm.status}
+                   onChange={val => setEditInstanceForm({...editInstanceForm, status: val})}
+                   disabled={!canEditSelected}
+                   options={statusOptions}
+                 />
+                </div>
            </div>
 
            {selectedEvent?.isRecurring && canEditSelected && (

@@ -5,7 +5,15 @@ import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../utils/api';
 
 interface LoginProps {
-  onLogin: (email: string, password: string) => Promise<{ success: boolean; role?: 'admin' | 'zone_leader'; error?: string; mfaRequired?: boolean; userId?: string }>;
+  onLogin: (email: string, password: string) => Promise<{ 
+    success: boolean; 
+    role?: 'admin' | 'zone_leader'; 
+    error?: string; 
+    mfaRequired?: boolean; 
+    userId?: string;
+    channel?: 'email' | 'sms';
+    recipient?: string;
+  }>;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -18,6 +26,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [mfaRequired, setMfaRequired] = useState(false);
   const [userId, setUserId] = useState('');
   const [mfaCode, setMfaCode] = useState('');
+  const [mfaChannel, setMfaChannel] = useState<'email' | 'sms' | null>(null);
+  const [mfaRecipient, setMfaRecipient] = useState('');
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,6 +41,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (result.mfaRequired) {
         setMfaRequired(true);
         setUserId(result.userId!);
+        setMfaChannel(result.channel || 'email');
+        setMfaRecipient(result.recipient || '');
       } else {
         const target = result.role === 'zone_leader' ? '/zone-dashboard' : '/';
         navigate(target);
@@ -77,7 +89,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
            </div>
            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight dark:text-white leading-none">Ecclesia Manager</h1>
            <p className="text-slate-500 mt-3 font-medium text-sm sm:text-base dark:text-slate-400">
-             {mfaRequired ? 'Enter the security code sent to your email.' : 'Welcome back, please sign in.'}
+             {mfaRequired 
+               ? `Enter the security code sent to your ${mfaChannel === 'sms' ? 'phone number' : 'email'} (${mfaRecipient}).` 
+               : 'Welcome back, please sign in.'}
            </p>
         </div>
 
@@ -154,6 +168,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 setMfaRequired(false);
                 setMfaCode('');
                 setError('');
+                setMfaChannel(null);
+                setMfaRecipient('');
               }}
               className="w-full text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-200 mt-4"
             >

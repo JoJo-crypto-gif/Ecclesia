@@ -344,6 +344,7 @@ const Zones: React.FC = () => {
                   setIsLeaderDropdownOpen(true);
                   if (value.trim() === '' || (selectedLeader && value !== selectedLeaderLabel)) {
                     setFormData(prev => ({ ...prev, leaderId: undefined }));
+                    setLeaderLoginEmail('');
                   }
                 }}
                 onFocus={() => setIsLeaderDropdownOpen(true)}
@@ -378,6 +379,9 @@ const Zones: React.FC = () => {
                             setFormData(prev => ({ ...prev, leaderId: member.id }));
                             setLeaderSearch(label);
                             setIsLeaderDropdownOpen(false);
+                            if (member.email) {
+                              setLeaderLoginEmail(member.email);
+                            }
                           }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                         >

@@ -4,7 +4,15 @@ import {
   AlertCircle, Briefcase, Calendar, ArrowLeft, ArrowRight, CheckCircle2, Megaphone, Plus, Trash2, ChevronUp, ChevronDown
 } from 'lucide-react';
 import Modal from '../Modal';
+import CustomSelect from '../CustomSelect';
 import { Member, MemberChild, MemberStatus, Zone } from '../../types';
+import { parseOccupation, serializeOccupation, EmploymentDetails } from '../../utils/occupation';
+
+const EMPLOYMENT_STATUS_OPTIONS = [
+  { value: 'Employed', label: 'Employed' },
+  { value: 'Student', label: 'Student' },
+  { value: 'Unemployed', label: 'Unemployed' },
+];
 
 interface MemberWizardModalProps {
   isOpen: boolean;
@@ -19,12 +27,97 @@ interface MemberWizardModalProps {
 
 const TITLE_OPTIONS = ['Mr.', 'Mrs.', 'Miss', 'Ms.', 'Mister', 'Dr.', 'Rev.', 'Prof.', 'Hon.', 'Pastor', 'Bishop'];
 
+const GENDER_OPTIONS = [
+  { value: 'Male', label: 'Male' },
+  { value: 'Female', label: 'Female' },
+  { value: 'Other', label: 'Other' },
+];
+
+const MARITAL_STATUS_OPTIONS = [
+  { value: '', label: '-- Select Status --' },
+  { value: 'Single', label: 'Single' },
+  { value: 'Married', label: 'Married' },
+  { value: 'Divorced', label: 'Divorced' },
+  { value: 'Widowed', label: 'Widowed' },
+  { value: 'Separated', label: 'Separated' },
+];
+
+const STATUS_OPTIONS = [
+  { value: MemberStatus.Active, label: 'Active' },
+  { value: MemberStatus.Inactive, label: 'Inactive' },
+  { value: MemberStatus.Visitor, label: 'Visitor' },
+  { value: MemberStatus.ExMember, label: 'Ex-member' },
+];
+
+const EX_MEMBER_REASON_OPTIONS = [
+  { value: '', label: '-- Select Reason --' },
+  { value: 'Transferred', label: 'Transferred' },
+  { value: 'Married off', label: 'Married off' },
+  { value: 'Deceased', label: 'Deceased' },
+  { value: 'Resigned', label: 'Resigned' },
+  { value: 'Disciplinary Action', label: 'Disciplinary Action' },
+  { value: 'Other', label: 'Other' },
+];
+
+const ROLE_OPTIONS = [
+  { value: '', label: '-- Select Role --' },
+  { value: 'Member', label: 'Member' },
+  { value: 'Usher', label: 'Usher' },
+  { value: 'Choir', label: 'Choir' },
+  { value: 'Media', label: 'Media' },
+  { value: 'Sunday School', label: 'Sunday School' },
+  { value: 'Deacon', label: 'Deacon' },
+  { value: 'Elder', label: 'Elder' },
+  { value: 'Pastor', label: 'Pastor' },
+  { value: 'Other', label: 'Other' },
+];
+
+const DISCOVERY_SOURCE_OPTIONS = [
+  { value: '', label: '-- Select Source --' },
+  { value: 'Social Media', label: 'Social Media' },
+  { value: 'Friend/Family Invitation', label: 'Friend / Family Invitation' },
+  { value: 'Evangelism Outreach', label: 'Evangelism Outreach' },
+  { value: 'Church Website', label: 'Church Website' },
+  { value: 'Walk-In', label: 'Walk-In' },
+  { value: 'Other', label: 'Other' },
+];
+
+const BAPTISM_METHOD_OPTIONS = [
+  { value: '', label: '-- Select Method --' },
+  { value: 'Immersion', label: 'Immersion' },
+  { value: 'Sprinkling', label: 'Sprinkling' },
+];
+
 const MemberWizardModal: React.FC<MemberWizardModalProps> = ({ 
   isOpen, onClose, editingMember, onSave, zones, isZoneLocked = false, lockedZoneId, lockedZoneName
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
   const [formData, setFormData] = useState<Partial<Member>>({});
+  
+  const zoneOptions = React.useMemo(() => [
+    { value: '', label: '-- Select --' },
+    ...zones.map(z => ({ value: z.id, label: z.name }))
+  ], [zones]);
+
+  const occupationDetails = React.useMemo(() => {
+    return parseOccupation(formData.occupation);
+  }, [formData.occupation]);
+
+  const handleOccupationChange = (updatedFields: Partial<EmploymentDetails>) => {
+    const currentDetails = parseOccupation(formData.occupation);
+    const nextDetails = { ...currentDetails, ...updatedFields };
+    // If changing status, reset conditional fields
+    if (updatedFields.status) {
+      nextDetails.role = '';
+      nextDetails.organization = '';
+      nextDetails.location = '';
+    }
+    setFormData(prev => ({
+      ...prev,
+      occupation: serializeOccupation(nextDetails)
+    }));
+  };
   
   // Camera state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -491,15 +584,11 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Gender</label>
-                                <select 
+                                <CustomSelect 
                                     value={formData.gender || 'Male'}
-                                    onChange={e => setFormData({...formData, gender: e.target.value as any})}
-                                    className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                >
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
-                                </select>
+                                    onChange={val => setFormData({...formData, gender: val as any})}
+                                    options={GENDER_OPTIONS}
+                                />
                             </div>
                         </div>
                     </div>
@@ -623,10 +712,9 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                         {/* Marital Status */}
                         <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Marital Status <span className="text-rose-500">*</span></label>
-                           <select
+                           <CustomSelect
                                value={formData.maritalStatus || ''}
-                               onChange={e => {
-                                   const maritalStatus = e.target.value;
+                               onChange={maritalStatus => {
                                    setFormData({
                                        ...formData,
                                        maritalStatus: maritalStatus as any,
@@ -635,15 +723,9 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                        spousePhone: maritalStatus === 'Married' ? (formData.spousePhone || '') : null
                                    });
                                }}
-                               className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                           >
-                               <option value="">-- Select Status --</option>
-                               <option value="Single">Single</option>
-                               <option value="Married">Married</option>
-                               <option value="Divorced">Divorced</option>
-                               <option value="Widowed">Widowed</option>
-                               <option value="Separated">Separated</option>
-                           </select>
+                               options={MARITAL_STATUS_OPTIONS}
+                               placeholder="-- Select Status --"
+                           />
                         </div>
 
                         {formData.maritalStatus === 'Married' && (
@@ -884,9 +966,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                         <div className="text-center mb-6">
                              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Church Involvement</h3>
                              <p className="text-slate-500 text-sm dark:text-slate-400">Zone, role and membership status</p>
-                        </div>
-
-                         <div className="grid grid-cols-2 gap-4">
+                                              <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">
                                   {isZoneLocked ? 'Assigned Zone' : 'Assign Zone'}
@@ -896,30 +976,21 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                     {lockedZoneName || 'Your Zone'}
                                   </div>
                                 ) : (
-                                  <select 
-                                  value={formData.zoneId || ''}
-                                  onChange={e => setFormData({...formData, zoneId: e.target.value})}
-                                  className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                  >
-                                  <option value="">-- Select --</option>
-                                  {zones.map(z => (
-                                      <option key={z.id} value={z.id}>{z.name}</option>
-                                  ))}
-                                  </select>
+                                  <CustomSelect 
+                                      value={formData.zoneId || ''}
+                                      onChange={val => setFormData({...formData, zoneId: val})}
+                                      options={zoneOptions}
+                                      placeholder="-- Select --"
+                                  />
                                 )}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Current Status</label>
-                                <select 
+                                <CustomSelect 
                                     value={formData.status || MemberStatus.Active}
-                                    onChange={e => setFormData({...formData, status: e.target.value as MemberStatus})}
-                                    className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                >
-                                    <option value={MemberStatus.Active}>Active</option>
-                                    <option value={MemberStatus.Inactive}>Inactive</option>
-                                    <option value={MemberStatus.Visitor}>Visitor</option>
-                                    <option value={MemberStatus.ExMember}>Ex-member</option>
-                                </select>
+                                    onChange={val => setFormData({...formData, status: val as MemberStatus})}
+                                    options={STATUS_OPTIONS}
+                                />
                             </div>
                         </div>
 
@@ -927,42 +998,25 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                             <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl dark:bg-rose-500/10 dark:border-rose-500/20 space-y-4 animate-enter">
                                 <div>
                                     <label className="block text-xs font-bold text-rose-600 uppercase tracking-wider mb-1.5 dark:text-rose-400">Reason for leaving <span className="text-rose-500">*</span></label>
-                                    <select 
+                                    <CustomSelect 
                                         value={formData.exMemberReason || ''}
-                                        onChange={e => setFormData({...formData, exMemberReason: e.target.value})}
-                                        className="w-full h-[50px] px-4 py-3 bg-white border border-rose-200 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-rose-500/30 dark:text-white"
-                                    >
-                                        <option value="">-- Select Reason --</option>
-                                        <option value="Transferred">Transferred</option>
-                                        <option value="Married off">Married off</option>
-                                        <option value="Deceased">Deceased</option>
-                                        <option value="Resigned">Resigned</option>
-                                        <option value="Disciplinary Action">Disciplinary Action</option>
-                                        <option value="Other">Other</option>
-                                    </select>
+                                        onChange={val => setFormData({...formData, exMemberReason: val})}
+                                        options={EX_MEMBER_REASON_OPTIONS}
+                                        placeholder="-- Select Reason --"
+                                    />
                                 </div>
                             </div>
                         )}
 
                         <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Role / Ministry</label>
-                           <select 
+                           <CustomSelect 
                                value={formData.role || ''} 
-                               onChange={e => setFormData({...formData, role: e.target.value})}
-                               className="w-full h-[50px] px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
-                           >
-                               <option value="">-- Select Role --</option>
-                               <option value="Member">Member</option>
-                               <option value="Usher">Usher</option>
-                               <option value="Choir">Choir</option>
-                               <option value="Media">Media</option>
-                               <option value="Sunday School">Sunday School</option>
-                               <option value="Deacon">Deacon</option>
-                               <option value="Elder">Elder</option>
-                               <option value="Pastor">Pastor</option>
-                               <option value="Other">Other</option>
-                           </select>
-                        </div>
+                               onChange={val => setFormData({...formData, role: val})}
+                               options={ROLE_OPTIONS}
+                               placeholder="-- Select Role --"
+                           />
+                        </div>      </div>
 
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Date Joined</label>
@@ -979,25 +1033,12 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
 
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">How did you hear about us? (Optional)</label>
-                            <div className="relative">
-                                <Megaphone className="absolute left-4 top-3.5 text-slate-400" size={18} />
-                                <select 
-                                    value={formData.discoverySource || ''}
-                                    onChange={e => setFormData({...formData, discoverySource: e.target.value})}
-                                    className="w-full h-[50px] pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white appearance-none"
-                                >
-                                    <option value="">-- Select Source --</option>
-                                    <option value="Social Media">Social Media</option>
-                                    <option value="Friend/Family Invitation">Friend / Family Invitation</option>
-                                    <option value="Evangelism Outreach">Evangelism Outreach</option>
-                                    <option value="Church Website">Church Website</option>
-                                    <option value="Walk-In">Walk-In</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
-                                </div>
-                            </div>
+                            <CustomSelect 
+                                value={formData.discoverySource || ''}
+                                onChange={val => setFormData({...formData, discoverySource: val})}
+                                options={DISCOVERY_SOURCE_OPTIONS}
+                                placeholder="-- Select Source --"
+                            />
                         </div>
                     </div>
                 )}
@@ -1069,15 +1110,12 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                          </div>
                                          <div>
                                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Method</label>
-                                             <select
+                                             <CustomSelect
                                                  value={formData.baptismMethod || ''}
-                                                 onChange={e => setFormData({ ...formData, baptismMethod: e.target.value as any })}
-                                                 className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                                             >
-                                                 <option value="">-- Select Method --</option>
-                                                 <option value="Immersion">Immersion</option>
-                                                 <option value="Sprinkling">Sprinkling</option>
-                                             </select>
+                                                 onChange={val => setFormData({ ...formData, baptismMethod: val as any })}
+                                                 options={BAPTISM_METHOD_OPTIONS}
+                                                 placeholder="-- Select Method --"
+                                             />
                                          </div>
                                      </div>
                                      <div>
@@ -1104,15 +1142,78 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                              )}
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Occupation</label>
-                            <input 
-                                type="text" 
-                                value={formData.occupation || ''} 
-                                onChange={e => setFormData({...formData, occupation: e.target.value})}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                                placeholder="e.g. Teacher, Engineer, Student"
-                            />
+                        <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Employment Status</label>
+                                <CustomSelect 
+                                    value={occupationDetails.status}
+                                    onChange={val => handleOccupationChange({ status: val as any })}
+                                    options={EMPLOYMENT_STATUS_OPTIONS}
+                                    placeholder="-- Select Employment Status --"
+                                />
+                            </div>
+
+                            {occupationDetails.status === 'Employed' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl dark:bg-slate-800/60 dark:border-slate-700 animate-enter">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">What do you do? (Job Title)</label>
+                                        <input 
+                                            type="text" 
+                                            value={occupationDetails.role || ''} 
+                                            onChange={e => handleOccupationChange({ role: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                            placeholder="e.g. Software Engineer, Teacher, Doctor"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Where do you work? (Employer)</label>
+                                        <input 
+                                            type="text" 
+                                            value={occupationDetails.organization || ''} 
+                                            onChange={e => handleOccupationChange({ organization: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                            placeholder="e.g. Google, City Hospital, Self-employed"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {occupationDetails.status === 'Student' && (
+                                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl dark:bg-slate-800/60 dark:border-slate-700 animate-enter">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">What school do you go to?</label>
+                                            <input 
+                                                type="text" 
+                                                value={occupationDetails.organization || ''} 
+                                                onChange={e => handleOccupationChange({ organization: e.target.value })}
+                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                                placeholder="e.g. Stanford University, Oak High School"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Where is the school located?</label>
+                                            <input 
+                                                type="text" 
+                                                value={occupationDetails.location || ''} 
+                                                onChange={e => handleOccupationChange({ location: e.target.value })}
+                                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                                placeholder="e.g. Palo Alto, CA or Boston, MA"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">What are you studying? (Optional)</label>
+                                        <input 
+                                            type="text" 
+                                            value={occupationDetails.role || ''} 
+                                            onChange={e => handleOccupationChange({ role: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                            placeholder="e.g. Computer Science, Grade 10, Biology"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="col-span-2">

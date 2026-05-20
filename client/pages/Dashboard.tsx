@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Map, Activity, TrendingUp, Calendar, ArrowRight, Shield, UserCheck } from 'lucide-react';
+import { Users, Map, Activity, TrendingUp, Calendar, ArrowRight, Shield, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area 
@@ -10,6 +10,7 @@ import { MemberStatus } from '../types';
 
 import { useNavigate } from 'react-router-dom';
 import ReportGenerationModal from '../components/reports/ReportGenerationModal';
+import CustomSelect from '../components/CustomSelect';
 import { apiFetch } from '../utils/api';
 
 const Dashboard: React.FC = () => {
@@ -22,9 +23,31 @@ const Dashboard: React.FC = () => {
   const [selectedEventId, setSelectedEventId] = React.useState<string>('all');
   const [trendData, setTrendData] = React.useState<any[]>([]);
 
+  const dashboardEventOptions = React.useMemo(() => [
+    { value: 'all', label: 'All Events' },
+    ...events.map(event => ({ value: event.id, label: event.name }))
+  ], [events]);
+
   // Zone Health & Demographics State
   const [zoneHealthData, setZoneHealthData] = React.useState<any[]>([]);
   const [demographicsData, setDemographicsData] = React.useState<any[]>([]);
+
+  // Pagination for Zone Health card
+  const [zoneHealthPage, setZoneHealthPage] = React.useState(1);
+  const ZONE_HEALTH_PAGE_SIZE = 5;
+
+  const totalZoneHealthPages = Math.ceil(zoneHealthData.length / ZONE_HEALTH_PAGE_SIZE);
+
+  const paginatedZoneHealthData = React.useMemo(() => {
+    const start = (zoneHealthPage - 1) * ZONE_HEALTH_PAGE_SIZE;
+    return zoneHealthData.slice(start, start + ZONE_HEALTH_PAGE_SIZE);
+  }, [zoneHealthData, zoneHealthPage]);
+
+  React.useEffect(() => {
+    if (zoneHealthPage > totalZoneHealthPages && totalZoneHealthPages > 0) {
+      setZoneHealthPage(totalZoneHealthPages);
+    }
+  }, [zoneHealthData.length, totalZoneHealthPages, zoneHealthPage]);
 
   // Fetch Zone Health & Demographics on mount
   React.useEffect(() => {
@@ -169,17 +192,13 @@ const Dashboard: React.FC = () => {
              </div>
              
              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                {/* Event Selector */}
-                <select 
+                 <CustomSelect
                     value={selectedEventId}
-                    onChange={(e) => setSelectedEventId(e.target.value)}
-                    className="flex-1 sm:flex-initial bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                >
-                    <option value="all">All Events</option>
-                    {events.map(event => (
-                        <option key={event.id} value={event.id}>{event.name}</option>
-                    ))}
-                </select>
+                    onChange={(val) => setSelectedEventId(val)}
+                    options={dashboardEventOptions}
+                    fullWidth={false}
+                    className="flex-1 sm:flex-initial text-xs sm:text-sm"
+                 />
 
                 {/* Period Tabs */}
                 <div className="flex-1 sm:flex-initial flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
@@ -455,43 +474,76 @@ const Dashboard: React.FC = () => {
 
         {/* Zone Health Leaderboard */}
         {zoneHealthData.length > 0 && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 animate-enter delay-500 dark:bg-slate-900 dark:border-slate-800 group md:hover-3d-card md:preserve-3d">
-            <div className="flex items-center gap-3 mb-6 transform transition-transform duration-300 md:group-hover:translate-z-4">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20">
-                <Shield size={18} />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Zone Health</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Engagement rate over last 3 months</p>
-              </div>
-            </div>
-            <div className="space-y-3 transform transition-transform duration-300 md:group-hover:translate-z-2">
-              {zoneHealthData.map((zone, i) => (
-                <div key={zone.id} className="group/item">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-400 w-5">{i + 1}.</span>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{zone.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">{zone.activeAttendees}/{zone.totalMembers} members</span>
-                      <span className="text-sm font-black" style={{ color: getEngagementColor(zone.engagementRate) }}>
-                        {zone.engagementRate}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-1000 ease-out"
-                      style={{
-                        width: `${Math.min(zone.engagementRate, 100)}%`,
-                        background: `linear-gradient(90deg, ${getEngagementColor(zone.engagementRate)}, ${zone.engagementRate >= 75 ? '#06b6d4' : zone.engagementRate >= 50 ? '#f59e0b' : '#ec4899'})`,
-                      }}
-                    />
-                  </div>
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 animate-enter delay-500 dark:bg-slate-900 dark:border-slate-800 group md:hover-3d-card md:preserve-3d flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-6 transform transition-transform duration-300 md:group-hover:translate-z-4">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20">
+                  <Shield size={18} />
                 </div>
-              ))}
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white">Zone Health</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Engagement rate over last 3 months</p>
+                </div>
+              </div>
+              <div className="space-y-3 transform transition-transform duration-300 md:group-hover:translate-z-2">
+                {paginatedZoneHealthData.map((zone, i) => {
+                  const rankIndex = (zoneHealthPage - 1) * ZONE_HEALTH_PAGE_SIZE + i + 1;
+                  return (
+                    <div key={zone.id} className="group/item">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-400 w-5">{rankIndex}.</span>
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{zone.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400">{zone.activeAttendees}/{zone.totalMembers} members</span>
+                          <span className="text-sm font-black" style={{ color: getEngagementColor(zone.engagementRate) }}>
+                            {zone.engagementRate}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-1000 ease-out"
+                          style={{
+                            width: `${Math.min(zone.engagementRate, 100)}%`,
+                            background: `linear-gradient(90deg, ${getEngagementColor(zone.engagementRate)}, ${zone.engagementRate >= 75 ? '#06b6d4' : zone.engagementRate >= 50 ? '#f59e0b' : '#ec4899'})`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
+            {totalZoneHealthPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 transform transition-transform duration-300 md:group-hover:translate-z-3">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Page {zoneHealthPage} of {totalZoneHealthPages}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={zoneHealthPage <= 1}
+                    onClick={() => setZoneHealthPage(zoneHealthPage - 1)}
+                    className="flex items-center justify-center p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={zoneHealthPage >= totalZoneHealthPages}
+                    onClick={() => setZoneHealthPage(zoneHealthPage + 1)}
+                    className="flex items-center justify-center p-2 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors dark:border-slate-700 dark:hover:bg-slate-800 dark:text-slate-300"
+                    title="Next Page"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

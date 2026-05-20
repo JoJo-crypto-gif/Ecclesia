@@ -2,6 +2,18 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Gift, Heart, PartyPopper, Sparkles } from 'lucide-react';
 import { User } from '../types';
 import { apiFetch } from '../utils/api';
+import CustomSelect from '../components/CustomSelect';
+
+const periodOptions = [
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+];
+
+const windowOptions = [
+  { value: 'today', label: 'Today' },
+  { value: 'current', label: 'Current' },
+  { value: 'upcoming', label: 'Upcoming Next' },
+];
 
 interface CelebrationsProps {
   user: User | null;
@@ -236,24 +248,21 @@ const Celebrations: React.FC<CelebrationsProps> = ({ user }) => {
           </div>
 
           <div className="flex gap-2">
-            <select
+            <CustomSelect
               value={period}
-              onChange={(e) => setPeriod(e.target.value as PeriodType)}
-              className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-            >
-              <option value="week">Week</option>
-              <option value="month">Month</option>
-            </select>
+              onChange={(val) => setPeriod(val as PeriodType)}
+              options={periodOptions}
+              fullWidth={false}
+              className="w-36"
+            />
 
-            <select
+            <CustomSelect
               value={windowFilter}
-              onChange={(e) => setWindowFilter(e.target.value as WindowType)}
-              className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-            >
-              <option value="today">Today</option>
-              <option value="current">Current</option>
-              <option value="upcoming">Upcoming Next</option>
-            </select>
+              onChange={(val) => setWindowFilter(val as WindowType)}
+              options={windowOptions}
+              fullWidth={false}
+              className="w-44"
+            />
           </div>
         </div>
       </div>

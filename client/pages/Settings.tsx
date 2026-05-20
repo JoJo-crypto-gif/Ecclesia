@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, ImageIcon, RotateCcw, User, ShieldCheck, School, Zap, BellRing, Settings as SettingsIcon, Users, Trash2, Plus, Search, Loader2, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import CustomSelect from '../components/CustomSelect';
 
 const parseBoolean = (value: unknown, fallback = true) => {
   if (value === null || value === undefined) return fallback;
@@ -434,7 +435,7 @@ const Settings: React.FC = () => {
   };
 
   const toggleButtonClass = (enabled: boolean, disabled = false) => (
-    `relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+    `relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
       enabled
         ? 'bg-indigo-600 dark:bg-indigo-500'
         : 'bg-slate-300 dark:bg-slate-700'
@@ -618,7 +619,7 @@ const Settings: React.FC = () => {
         <div className="flex-1 w-full min-w-0">
           {activeTab === 'profile' && (
             <div className="space-y-6 animate-enter">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
+              <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex items-center gap-2 mb-6">
                   <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
                   <h2 className="text-xl font-black text-slate-800 dark:text-white">Profile Information</h2>
@@ -651,9 +652,9 @@ const Settings: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-5 mt-6 rounded-2xl border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                    <div className="pr-4">
-                      <p className="font-bold text-slate-800 dark:text-white">Two-Factor Authentication (MFA)</p>
+                  <div className="flex items-center justify-between gap-4 p-5 mt-6 rounded-2xl border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="font-bold text-slate-800 dark:text-white truncate sm:whitespace-normal">Two-Factor Authentication (MFA)</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Require an email security code when signing in.</p>
                     </div>
                     <button
@@ -682,7 +683,7 @@ const Settings: React.FC = () => {
                 </form>
               </div>
 
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
+              <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex items-center gap-2 mb-6">
                   <div className="w-1.5 h-6 bg-amber-500 rounded-full" />
                   <h2 className="text-xl font-black text-slate-800 dark:text-white">Security & Password</h2>
@@ -744,7 +745,7 @@ const Settings: React.FC = () => {
           )}
 
           {activeTab === 'branding' && canManageSettings && (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
                 <h2 className="text-xl font-black text-slate-800 dark:text-white">Church Branding</h2>
@@ -822,7 +823,7 @@ const Settings: React.FC = () => {
           )}
 
           {activeTab === 'automation' && canManageSettings && (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
                 <h2 className="text-xl font-black text-slate-800 dark:text-white">Automation Hub</h2>
@@ -832,12 +833,12 @@ const Settings: React.FC = () => {
               </p>
 
               <form onSubmit={handleAutomationSubmit} className="space-y-4">
-                <div className="flex items-center justify-between p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100 dark:bg-indigo-500/5 dark:border-indigo-500/20">
-                  <div className="flex gap-4">
-                    <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl h-fit dark:bg-indigo-500/20 dark:text-indigo-400">
+                <div className="flex items-center justify-between gap-4 p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100 dark:bg-indigo-500/5 dark:border-indigo-500/20">
+                  <div className="flex-1 min-w-0 flex gap-4">
+                    <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl h-fit shrink-0 dark:bg-indigo-500/20 dark:text-indigo-400">
                       <BellRing size={20} />
                     </div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-bold text-slate-900 dark:text-white">Master Switch</p>
                       <p className="text-sm text-slate-500 dark:text-slate-400">Enable or disable all automated SMS communications.</p>
                     </div>
@@ -858,8 +859,8 @@ const Settings: React.FC = () => {
                     { key: 'anniversarySmsEnabled', label: 'Wedding Anniversaries', desc: 'Auto-send daily SMS to members celebrating anniversaries.' },
                     { key: 'absenteeSmsEnabled', label: 'Absentee Follow-up', desc: 'Weekly smart check-ins for members missing consecutive services.' }
                   ].map((item) => (
-                    <div key={item.key} className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${isGlobalDisabled ? 'opacity-50 grayscale' : 'bg-white dark:bg-slate-800'} border-slate-200 dark:border-slate-700`}>
-                      <div className="pr-4">
+                    <div key={item.key} className={`flex items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${isGlobalDisabled ? 'opacity-50 grayscale' : 'bg-white dark:bg-slate-800'} border-slate-200 dark:border-slate-700`}>
+                      <div className="flex-1 min-w-0 pr-2">
                         <p className="font-bold text-slate-800 dark:text-white">{item.label}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.desc}</p>
                       </div>
@@ -895,7 +896,7 @@ const Settings: React.FC = () => {
           )}
 
           {activeTab === 'security' && canManageSettings && (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
                 <h2 className="text-xl font-black text-slate-800 dark:text-white">Security & MFA</h2>
@@ -908,15 +909,15 @@ const Settings: React.FC = () => {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">MFA Enforcement Level</label>
-                    <select
+                    <CustomSelect
                       value={mfaSettings.mode}
-                      onChange={(e) => setMfaSettings({ ...mfaSettings, mode: e.target.value })}
-                      className="w-full h-[50px] px-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white cursor-pointer"
-                    >
-                      <option value="off">Disabled Globally</option>
-                      <option value="optional">Optional (Users can opt-in)</option>
-                      <option value="enforced">Enforced (Required for selected roles)</option>
-                    </select>
+                      onChange={(value) => setMfaSettings({ ...mfaSettings, mode: value })}
+                      options={[
+                        { value: 'off', label: 'Disabled Globally' },
+                        { value: 'optional', label: 'Optional (Users can opt-in)' },
+                        { value: 'enforced', label: 'Enforced (Required for selected roles)' }
+                      ]}
+                    />
                   </div>
 
                   {mfaSettings.mode === 'enforced' && (
@@ -966,7 +967,7 @@ const Settings: React.FC = () => {
           )}
 
           {activeTab === 'roles' && canManageSettings && (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex justify-between items-center mb-8">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
@@ -1040,7 +1041,7 @@ const Settings: React.FC = () => {
           )}
 
           {activeTab === 'users' && canManageSettings && (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
+            <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-slate-100 dark:bg-slate-900 dark:border-slate-800 animate-enter">
               <div className="flex justify-between items-center mb-8">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
@@ -1219,17 +1220,15 @@ const Settings: React.FC = () => {
                 <div className="grid grid-cols-1 gap-6">
                   <div>
                     <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Assign Role</label>
-                    <select 
+                    <CustomSelect
                       value={userForm.roleId}
-                      onChange={(e) => setUserForm({ ...userForm, roleId: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white appearance-none"
-                    >
-                      <option value="">Select a role...</option>
-                      {roles.map(r => (
-                        <option key={r.id} value={r.id}>{r.name.charAt(0).toUpperCase() + r.name.slice(1)}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => setUserForm({ ...userForm, roleId: value })}
+                      options={roles.map(r => ({
+                        value: r.id,
+                        label: r.name.charAt(0).toUpperCase() + r.name.slice(1)
+                      }))}
+                      placeholder="Select a role..."
+                    />
                   </div>
 
                   <div>

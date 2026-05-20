@@ -37,6 +37,10 @@ const ProtectedLayout: React.FC<ProtectedLayoutProps & { isMobileMenuOpen: boole
   children, module, action = 'read', user, authLoading, onLogout, isSidebarCollapsed, toggleSidebar, isMobileMenuOpen, setIsMobileMenuOpen
 }) => {
   const { hasPermission } = useAuth();
+  const { settings } = useData();
+
+  const churchName = settings?.church_name || 'Ecclesia';
+  const churchLogo = settings?.church_logo || '';
 
   if (authLoading) {
     return (
@@ -64,6 +68,8 @@ const ProtectedLayout: React.FC<ProtectedLayoutProps & { isMobileMenuOpen: boole
         <MobileHeader 
             isOpen={isMobileMenuOpen} 
             toggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+            title={churchName}
+            logo={churchLogo}
         />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 relative scroll-smooth">
           <div className="max-w-7xl mx-auto transition-all duration-500 ease-spring">
@@ -100,7 +106,13 @@ const AppInner: React.FC = () => {
       }
       
       if (data.mfaRequired) {
-        return { success: true, mfaRequired: true, userId: data.userId };
+        return { 
+          success: true, 
+          mfaRequired: true, 
+          userId: data.userId, 
+          channel: data.channel, 
+          recipient: data.recipient 
+        };
       }
 
       login(data.data);

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Calendar, Check, Search, SlidersHorizontal } from 'lucide-react';
 import Modal from '../Modal';
 import { EventInstance } from '../../types';
+import CustomSelect from '../CustomSelect';
 
 type TimeFilter = 'all' | 'upcoming' | 'past';
 
@@ -27,6 +28,11 @@ const monthOptions = [
   'October',
   'November',
   'December',
+];
+
+const monthFilterOptions = [
+  { value: 'all', label: 'All Months' },
+  ...monthOptions.map((month, index) => ({ value: String(index), label: month })),
 ];
 
 const toDateOnlyKey = (value: string) => value.split('T')[0];
@@ -74,6 +80,11 @@ const EventInstancePickerModal: React.FC<EventInstancePickerModalProps> = ({
 
     return Array.from(uniqueYears).sort((a, b) => b - a);
   }, [instances]);
+
+  const yearOptions = useMemo(() => [
+    { value: 'all', label: 'All Years' },
+    ...years.map((year) => ({ value: String(year), label: String(year) })),
+  ], [years]);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -149,28 +160,17 @@ const EventInstancePickerModal: React.FC<EventInstancePickerModalProps> = ({
               className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
             />
           </div>
-
-          <select
+          <CustomSelect
             value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-          >
-            <option value="all">All Years</option>
-            {years.map((year) => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedYear(val)}
+            options={yearOptions}
+          />
 
-          <select
+          <CustomSelect
             value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-          >
-            <option value="all">All Months</option>
-            {monthOptions.map((month, index) => (
-              <option key={month} value={index}>{month}</option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedMonth(val)}
+            options={monthFilterOptions}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

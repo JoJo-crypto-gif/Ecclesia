@@ -107,6 +107,9 @@ const UsersController = {
 
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+      const zoneLeaderRole = await RolesModel.getByName('zone_leader');
+      const roleId = zoneLeaderRole ? zoneLeaderRole.id : null;
+
       let user;
       if (existingByMember) {
         user = await UsersModel.update(existingByMember.id, {
@@ -114,6 +117,7 @@ const UsersController = {
           email: normalizedEmail,
           passwordHash,
           role: 'zone_leader',
+          roleId,
           memberId,
           zoneId,
         });
@@ -122,6 +126,7 @@ const UsersController = {
           name: name || existingByEmail.name,
           passwordHash,
           role: 'zone_leader',
+          roleId,
           memberId,
           zoneId,
         });
@@ -131,6 +136,7 @@ const UsersController = {
           email: normalizedEmail,
           passwordHash,
           role: 'zone_leader',
+          roleId,
           memberId,
           zoneId,
         });

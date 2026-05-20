@@ -9,6 +9,37 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { apiFetch } from '../utils/api';
+import { formatOccupation, parseOccupation } from '../utils/occupation';
+import CustomSelect from '../components/CustomSelect';
+
+const searchFieldOptions = [
+  { value: 'all', label: 'All Fields' },
+  { value: 'firstName', label: 'First Name (Identity)' },
+  { value: 'lastName', label: 'Last Name (Identity)' },
+  { value: 'otherName', label: 'Other Name (Identity)' },
+  { value: 'gender', label: 'Gender (Identity)' },
+  { value: 'age', label: 'Age (Identity)' },
+  { value: 'maritalStatus', label: 'Marital Status (Identity)' },
+  { value: 'email', label: 'Email (Contact)' },
+  { value: 'phone', label: 'Phone (Contact)' },
+  { value: 'address', label: 'Address (Contact)' },
+  { value: 'zone', label: 'Zone (Church)' },
+  { value: 'role', label: 'Role (Church)' },
+  { value: 'status', label: 'Status (Church)' },
+  { value: 'exMemberReason', label: 'Reason for Leaving (Church)' },
+  { value: 'joinDate', label: 'Join Date (Church)' },
+  { value: 'discoverySource', label: 'Discovery Source (Church)' },
+  { value: 'employmentStatus', label: 'Employment Status (Employment)' },
+  { value: 'employmentRole', label: 'Job Title / Major (Employment)' },
+  { value: 'employmentOrg', label: 'Workplace / School (Employment)' },
+  { value: 'employmentLocation', label: 'School Location (Employment)' },
+  { value: 'emergencyContact', label: 'Emergency Contact (Emergency)' },
+  { value: 'emergencyPhone', label: 'Emergency Phone (Emergency)' },
+  { value: 'spouseName', label: 'Spouse Name (Family)' },
+  { value: 'motherName', label: 'Mother Name (Family)' },
+  { value: 'fatherName', label: 'Father Name (Family)' },
+  { value: 'isBaptized', label: 'Baptized (yes/no) (Baptism)' },
+];
 
 const calculateAge = (dobString?: string): number | null => {
   if (!dobString) return null;
@@ -115,7 +146,10 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
     { id: 'gender',          label: 'Gender' },
     { id: 'dob',             label: 'Date of Birth' },
     { id: 'maritalStatus',   label: 'Marital Status' },
-    { id: 'occupation',      label: 'Occupation' },
+    { id: 'employmentStatus',   label: 'Employment Status' },
+    { id: 'employmentRole',     label: 'Job Title / Major' },
+    { id: 'employmentOrg',      label: 'Workplace / School' },
+    { id: 'employmentLocation', label: 'School Location' },
     { id: 'joinDate',        label: 'Join Date' },
     { id: 'discoverySource', label: 'Discovery Source' },
     { id: 'emergencyContact',label: 'Emergency Contact' },
@@ -285,7 +319,10 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
           const age = calculateAge(m.dob);
           return age !== null && age.toString().includes(q);
         }
-        case 'occupation':       return fv(m.occupation).includes(q);
+        case 'employmentStatus':   return fv(parseOccupation(m.occupation).status).includes(q);
+        case 'employmentRole':     return fv(parseOccupation(m.occupation).role).includes(q);
+        case 'employmentOrg':      return fv(parseOccupation(m.occupation).organization).includes(q);
+        case 'employmentLocation': return fv(parseOccupation(m.occupation).location).includes(q);
         case 'maritalStatus':    return fv(m.maritalStatus).includes(q);
         case 'discoverySource':  return fv(m.discoverySource).includes(q);
         case 'emergencyContact': return fv(m.emergencyContact).includes(q);
@@ -295,13 +332,17 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
         case 'fatherName':       return fv(m.fatherName).includes(q);
         case 'isBaptized':       return fv(m.isBaptized ? 'yes' : 'no').includes(q);
         default: // 'all'
+          const occ = parseOccupation(m.occupation);
           return (
             fv(m.firstName).includes(q) ||
             fv(m.lastName).includes(q) ||
             fv(m.otherName).includes(q) ||
             fv(m.email).includes(q) ||
             fv(m.phone).includes(q) ||
-            fv(m.occupation).includes(q) ||
+            fv(occ.status).includes(q) ||
+            fv(occ.role).includes(q) ||
+            fv(occ.organization).includes(q) ||
+            fv(occ.location).includes(q) ||
             fv(m.role).includes(q) ||
             fv(m.emergencyContact).includes(q) ||
             fv(zoneName).includes(q) ||
@@ -462,7 +503,10 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
         case 'gender':           return m.gender || '';
         case 'dob':              return m.dob ? new Date(m.dob).toLocaleDateString() : '';
         case 'maritalStatus':    return m.maritalStatus || '';
-        case 'occupation':       return m.occupation || '';
+        case 'employmentStatus':   return parseOccupation(m.occupation).status;
+        case 'employmentRole':     return parseOccupation(m.occupation).role || '';
+        case 'employmentOrg':      return parseOccupation(m.occupation).organization || '';
+        case 'employmentLocation': return parseOccupation(m.occupation).location || '';
         case 'joinDate':         return m.joinDate ? new Date(m.joinDate).toLocaleDateString() : '';
         case 'discoverySource':  return m.discoverySource || '';
         case 'emergencyContact': return m.emergencyContact || '';
@@ -514,7 +558,10 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
         case 'gender':           return m.gender || '-';
         case 'dob':              return m.dob ? new Date(m.dob).toLocaleDateString() : '-';
         case 'maritalStatus':    return m.maritalStatus || '-';
-        case 'occupation':       return m.occupation || '-';
+        case 'employmentStatus':   return parseOccupation(m.occupation).status;
+        case 'employmentRole':     return parseOccupation(m.occupation).role || '-';
+        case 'employmentOrg':      return parseOccupation(m.occupation).organization || '-';
+        case 'employmentLocation': return parseOccupation(m.occupation).location || '-';
         case 'joinDate':         return m.joinDate ? new Date(m.joinDate).toLocaleDateString() : '-';
         case 'discoverySource':  return m.discoverySource || '-';
         case 'emergencyContact': return m.emergencyContact || '-';
@@ -1222,49 +1269,13 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <select
+              <CustomSelect
                 value={membershipSearchField}
-                onChange={(e) => setMembershipSearchField(e.target.value)}
-                className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-              >
-                <option value="all">All Fields</option>
-                <optgroup label="Identity">
-                  <option value="firstName">First Name</option>
-                  <option value="lastName">Last Name</option>
-                  <option value="otherName">Other Name</option>
-                  <option value="gender">Gender</option>
-                  <option value="age">Age</option>
-                  <option value="maritalStatus">Marital Status</option>
-                </optgroup>
-                <optgroup label="Contact">
-                  <option value="email">Email</option>
-                  <option value="phone">Phone</option>
-                  <option value="address">Address</option>
-                </optgroup>
-                <optgroup label="Church">
-                  <option value="zone">Zone</option>
-                  <option value="role">Role</option>
-                  <option value="status">Status</option>
-                  <option value="exMemberReason">Reason for Leaving</option>
-                  <option value="joinDate">Join Date</option>
-                  <option value="discoverySource">Discovery Source</option>
-                </optgroup>
-                <optgroup label="Employment">
-                  <option value="occupation">Occupation</option>
-                </optgroup>
-                <optgroup label="Emergency">
-                  <option value="emergencyContact">Emergency Contact</option>
-                  <option value="emergencyPhone">Emergency Phone</option>
-                </optgroup>
-                <optgroup label="Family">
-                  <option value="spouseName">Spouse Name</option>
-                  <option value="motherName">Mother Name</option>
-                  <option value="fatherName">Father Name</option>
-                </optgroup>
-                <optgroup label="Baptism">
-                  <option value="isBaptized">Baptized (yes/no)</option>
-                </optgroup>
-              </select>
+                onChange={(val) => setMembershipSearchField(val)}
+                options={searchFieldOptions}
+                fullWidth={false}
+                className="w-full sm:w-60"
+              />
               <button
                 onClick={() => setShowColumnDropdown(true)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700 shrink-0"
@@ -1316,7 +1327,7 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
                       { label: 'Identity',   cols: ['firstName','lastName','otherName','gender','dob','maritalStatus'] },
                       { label: 'Contact',    cols: ['email','phone','address'] },
                       { label: 'Church',     cols: ['zone','role','status','exMemberReason','joinDate','discoverySource'] },
-                      { label: 'Employment', cols: ['occupation'] },
+                      { label: 'Employment', cols: ['employmentStatus', 'employmentRole', 'employmentOrg', 'employmentLocation'] },
                       { label: 'Emergency',  cols: ['emergencyContact','emergencyPhone'] },
                       { label: 'Family',     cols: ['spouseName','spousePhone','motherName','fatherName'] },
                       { label: 'Baptism',    cols: ['isBaptized','baptismDate','baptizedBy'] },
@@ -1443,7 +1454,34 @@ const Reports: React.FC<{ user: User | null }> = ({ user }) => {
                             {visibleColumns.has('exMemberReason') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.exMemberReason || '-'}</td>)}
                       {visibleColumns.has('dob') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.dob ? new Date(member.dob).toLocaleDateString() : '-'}</td>)}
                       {visibleColumns.has('maritalStatus') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.maritalStatus || '-'}</td>)}
-                      {visibleColumns.has('occupation') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.occupation || '-'}</td>)}
+                      {visibleColumns.has('employmentStatus') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                            parseOccupation(member.occupation).status === 'Employed' 
+                              ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400' 
+                              : parseOccupation(member.occupation).status === 'Student' 
+                                ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' 
+                                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}>
+                            {parseOccupation(member.occupation).status}
+                          </span>
+                        </td>
+                      )}
+                      {visibleColumns.has('employmentRole') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                          {parseOccupation(member.occupation).role || '-'}
+                        </td>
+                      )}
+                      {visibleColumns.has('employmentOrg') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                          {parseOccupation(member.occupation).organization || '-'}
+                        </td>
+                      )}
+                      {visibleColumns.has('employmentLocation') && (
+                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                          {parseOccupation(member.occupation).location || '-'}
+                        </td>
+                      )}
                       {visibleColumns.has('joinDate') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.joinDate ? new Date(member.joinDate).toLocaleDateString() : '-'}</td>)}
                       {visibleColumns.has('discoverySource') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.discoverySource || '-'}</td>)}
                       {visibleColumns.has('emergencyContact') && (<td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{member.emergencyContact || '-'}</td>)}

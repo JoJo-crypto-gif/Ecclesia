@@ -10,6 +10,7 @@ import MemberWizardModal from '../components/members/MemberWizardModal';
 import ViewMemberModal from '../components/members/ViewMemberModal';
 import IdCardModal from '../components/members/IdCardModal';
 import Modal from '../components/Modal';
+import CustomSelect from '../components/CustomSelect';
 import { getMemberDisplayName, getMemberTitles } from '../utils/memberName';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 75, 100, 150, 200, 250];
@@ -285,26 +286,38 @@ const Members: React.FC<MembersProps> = ({ user }) => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Zone</label>
-                <select value={activeZone} onChange={e => { setActiveZone(e.target.value); setZoneFilter(e.target.value); setPage(1); }} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-                  <option value="All">All Zones</option>
-                  {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-                </select>
+                <CustomSelect
+                  value={activeZone}
+                  onChange={value => { setActiveZone(value); setZoneFilter(value); setPage(1); }}
+                  options={[
+                    { value: 'All', label: 'All Zones' },
+                    ...zones.map(z => ({ value: z.id, label: z.name }))
+                  ]}
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Baptism Status</label>
-                <select value={activeBaptized} onChange={e => { setActiveBaptized(e.target.value); setBaptizedFilter(e.target.value); setPage(1); }} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-                  <option value="All">Any</option>
-                  <option value="Baptized">Baptized</option>
-                  <option value="Not Baptized">Not Baptized</option>
-                </select>
+                <CustomSelect
+                  value={activeBaptized}
+                  onChange={value => { setActiveBaptized(value); setBaptizedFilter(value); setPage(1); }}
+                  options={[
+                    { value: 'All', label: 'Any' },
+                    { value: 'Baptized', label: 'Baptized' },
+                    { value: 'Not Baptized', label: 'Not Baptized' }
+                  ]}
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Gender</label>
-                <select value={activeGender} onChange={e => { setActiveGender(e.target.value); setGenderFilter(e.target.value); setPage(1); }} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-                  <option value="All">Any</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
+                <CustomSelect
+                  value={activeGender}
+                  onChange={value => { setActiveGender(value); setGenderFilter(value); setPage(1); }}
+                  options={[
+                    { value: 'All', label: 'Any' },
+                    { value: 'Male', label: 'Male' },
+                    { value: 'Female', label: 'Female' }
+                  ]}
+                />
               </div>
             </div>
             
@@ -520,10 +533,13 @@ const Members: React.FC<MembersProps> = ({ user }) => {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm dark:bg-slate-900 dark:border-slate-800">
             <div className="hidden sm:flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
               <span>Rows:</span>
-              <select value={pagination.limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-medium dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-                {PAGE_SIZE_OPTIONS.slice(0, 5).map(size => <option key={size} value={size}>{size}</option>)}
-              </select>
+              <CustomSelect
+                value={pagination.limit}
+                onChange={value => { setLimit(Number(value)); setPage(1); }}
+                options={PAGE_SIZE_OPTIONS.slice(0, 5).map(size => ({ value: size, label: String(size) }))}
+                fullWidth={false}
+                className="w-20"
+              />
               <span className="text-slate-400">|</span>
               <span>
                 <strong className="text-slate-700 dark:text-slate-200">{pagination.offset + 1}</strong>–<strong className="text-slate-700 dark:text-slate-200">{Math.min(pagination.offset + pagination.limit, pagination.total)}</strong> of {pagination.total}
@@ -577,22 +593,28 @@ const Members: React.FC<MembersProps> = ({ user }) => {
           {batchActionType === 'status' && (
             <div className="mb-6">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 dark:text-slate-400">New Status</label>
-              <select value={batchValue} onChange={e => setBatchValue(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-                <option value="">-- Select Status --</option>
-                <option value={MemberStatus.Active}>Active</option>
-                <option value={MemberStatus.Inactive}>Inactive</option>
-                <option value={MemberStatus.Visitor}>Visitor</option>
-                <option value={MemberStatus.ExMember}>Ex-member</option>
-              </select>
+              <CustomSelect
+                value={batchValue}
+                onChange={value => setBatchValue(value)}
+                options={[
+                  { value: MemberStatus.Active, label: 'Active' },
+                  { value: MemberStatus.Inactive, label: 'Inactive' },
+                  { value: MemberStatus.Visitor, label: 'Visitor' },
+                  { value: MemberStatus.ExMember, label: 'Ex-member' }
+                ]}
+                placeholder="-- Select Status --"
+              />
             </div>
           )}
           {batchActionType === 'zone' && !isZoneLeader && (
             <div className="mb-6">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 dark:text-slate-400">Assign to Zone</label>
-              <select value={batchValue} onChange={e => setBatchValue(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-                <option value="">-- Select Zone --</option>
-                {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-              </select>
+              <CustomSelect
+                value={batchValue}
+                onChange={value => setBatchValue(value)}
+                options={zones.map(z => ({ value: z.id, label: z.name }))}
+                placeholder="-- Select Zone --"
+              />
             </div>
           )}
           <div className="flex justify-end gap-3">

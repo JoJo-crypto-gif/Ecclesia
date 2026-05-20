@@ -2,6 +2,8 @@ import bcrypt from 'bcrypt';
 import UsersModel from '../models/usersModel.js';
 import SettingsModel from '../models/settingsModel.js';
 import EmailService from '../services/emailService.js';
+import MembersModel from '../models/membersModel.js';
+import { sendSms } from '../services/messagingService.js';
 
 const SALT_ROUNDS = 10;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -65,13 +67,40 @@ const AuthController = {
           mfaCodeExpiresAt: expiresAt
         });
 
-        await EmailService.sendOTP(user.email, code);
+        let channel = 'email';
+        let recipient = maskEmail(user.email);
+        let phoneToSend = null;
+
+        if (user.member_id) {
+          try {
+            const member = await MembersModel.findById(user.member_id);
+            if (member && member.phone) {
+              phoneToSend = member.phone;
+            }
+          } catch (err) {
+            console.error('Error fetching member phone for MFA:', err);
+          }
+        }
+
+        if (phoneToSend) {
+          channel = 'sms';
+          recipient = maskPhone(phoneToSend);
+          try {
+            await sendSms(`Your Ecclesia security code is: ${code}. It expires in 10 minutes.`, [phoneToSend]);
+          } catch (err) {
+            console.error('Error sending SMS MFA code:', err);
+          }
+        } else {
+          await EmailService.sendOTP(user.email, code);
+        }
 
         return res.json({
           success: true,
           mfaRequired: true,
           userId: user.id,
-          message: 'MFA code sent'
+          channel,
+          recipient,
+          message: `MFA code sent via ${channel}`
         });
       }
 
@@ -185,6 +214,22 @@ function toSafeUser(user) {
     zoneId: user.zone_id,
     mfaEnabled: user.mfa_enabled,
   };
+}
+
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return email || '';
+  const [local, domain] = email.split('@');
+  const maskedLocal = local.length > 2 
+    ? `${local[0]}${'*'.repeat(Math.min(5, local.length - 2))}${local[local.length - 1]}`
+    : `${local[0]}*`;
+  return `${maskedLocal}@${domain}`;
+}
+
+function maskPhone(phone) {
+  if (!phone) return '';
+  const cleaned = phone.trim();
+  if (cleaned.length <= 4) return '***';
+  return `•••• •••• ${cleaned.slice(-4)}`;
 }
 
 export default AuthController;

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { User, Member, ManualMessagePayload } from '../types';
+import CustomSelect from '../components/CustomSelect';
 import { 
   MessageSquare, Mail, Smartphone, Users, Send, 
   Bold, Italic, Underline, List, Link as LinkIcon, CheckCircle, Clock, 
@@ -18,6 +19,24 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
   const HISTORY_PAGE_SIZE = 5;
   const isZoneLeader = user?.role === 'zone_leader';
   const canManageTemplates = user?.role === 'admin';
+
+  // Memoized options for filters
+  const zoneOptions = useMemo(() => [
+    { value: 'all', label: 'All Zones' },
+    ...zones.map((z) => ({ value: z.id, label: z.name }))
+  ], [zones]);
+
+  const genderOptions = useMemo(() => [
+    { value: 'all', label: 'All Genders' },
+    { value: 'Male', label: 'Men' },
+    { value: 'Female', label: 'Women' }
+  ], []);
+
+  const baptismOptions = useMemo(() => [
+    { value: 'all', label: 'All Baptism Status' },
+    { value: 'true', label: 'Baptized' },
+    { value: 'false', label: 'Unbaptized' }
+  ], []);
   
   // UI Tabs
   const [activeTab, setActiveTab] = useState<'compose' | 'templates'>('compose');
@@ -457,44 +476,24 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                        )}
                                        <div className={`grid grid-cols-1 gap-3 ${isZoneLeader ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
                                           {!isZoneLeader && (
-                                            <div className="relative">
-                                                <select 
-                                                    value={filters.zoneId}
-                                                    onChange={(e) => setFilters(prev => ({ ...prev, zoneId: e.target.value }))}
-                                                    className={filterSelectClass}
-                                                >
-                                                    <option value="all">All Zones</option>
-                                                    {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-                                                </select>
-                                                <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                            </div>
+                                              <CustomSelect
+                                                  value={filters.zoneId}
+                                                  onChange={(value) => setFilters(prev => ({ ...prev, zoneId: value }))}
+                                                  options={zoneOptions}
+                                              />
                                           )}
 
-                                          <div className="relative">
-                                              <select 
-                                                  value={filters.gender}
-                                                  onChange={(e) => setFilters(prev => ({ ...prev, gender: e.target.value }))}
-                                                  className={filterSelectClass}
-                                              >
-                                                  <option value="all">All Genders</option>
-                                                  <option value="Male">Men</option>
-                                                  <option value="Female">Women</option>
-                                              </select>
-                                              <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                          </div>
+                                          <CustomSelect
+                                              value={filters.gender}
+                                              onChange={(value) => setFilters(prev => ({ ...prev, gender: value }))}
+                                              options={genderOptions}
+                                          />
 
-                                          <div className="relative">
-                                              <select 
-                                                  value={filters.isBaptized}
-                                                  onChange={(e) => setFilters(prev => ({ ...prev, isBaptized: e.target.value }))}
-                                                  className={filterSelectClass}
-                                              >
-                                                  <option value="all">All Baptism Status</option>
-                                                  <option value="true">Baptized</option>
-                                                  <option value="false">Unbaptized</option>
-                                              </select>
-                                              <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                          </div>
+                                          <CustomSelect
+                                              value={filters.isBaptized}
+                                              onChange={(value) => setFilters(prev => ({ ...prev, isBaptized: value }))}
+                                              options={baptismOptions}
+                                          />
                                        </div>
                                    </div>
                                ) : (

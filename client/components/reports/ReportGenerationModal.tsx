@@ -3,6 +3,14 @@ import { Download, FileText, Users, Calendar, Filter, X } from 'lucide-react';
 import Modal from '../Modal';
 import { useData } from '../../context/DataContext';
 import { MemberStatus } from '../../types';
+import CustomSelect from '../CustomSelect';
+
+const statusOptions = [
+  { value: 'all', label: 'All Members' },
+  { value: 'Active', label: 'Active Only' },
+  { value: 'Inactive', label: 'Inactive Only' },
+  { value: 'Visitor', label: 'Visitors Only' },
+];
 
 interface ReportGenerationModalProps {
   isOpen: boolean;
@@ -144,16 +152,11 @@ const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ isOpen, o
             ) : (
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2 dark:text-slate-300">Filter by Status</label>
-                    <select
+                    <CustomSelect
                         value={memberStatusFilter}
-                        onChange={(e) => setMemberStatusFilter(e.target.value)}
-                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-white"
-                    >
-                        <option value="all">All Members</option>
-                        <option value="Active">Active Only</option>
-                        <option value="Inactive">Inactive Only</option>
-                        <option value="Visitor">Visitors Only</option>
-                    </select>
+                        onChange={(val) => setMemberStatusFilter(val)}
+                        options={statusOptions}
+                    />
                     <p className="text-xs text-slate-500 mt-2 dark:text-slate-400">
                         Exports a CSV list of members matching the selected status.
                     </p>

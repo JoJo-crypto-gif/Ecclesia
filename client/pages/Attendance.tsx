@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { Calendar, Plus, QrCode, Users, Scan, Repeat, Trash2, FileText, UserCheck, Clock, MapPin, ChevronDown } from 'lucide-react';
 import Modal from '../components/Modal';
+import CustomSelect from '../components/CustomSelect';
 import { ChurchEvent, EventInstance, AttendanceRecord, User } from '../types';
 import QrCodeModal from '../components/attendance/QrCodeModal';
 import ManualCheckInModal from '../components/attendance/ManualCheckInModal';
@@ -415,25 +416,23 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
              <div className="grid grid-cols-2 gap-4">
                <div>
                  <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Frequency</label>
-                 <select 
+                 <CustomSelect
                    value={newEvent.recurrenceRule}
-                   onChange={e => setNewEvent({...newEvent, recurrenceRule: e.target.value as any})}
-                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                 >
-                   <option value="weekly">Weekly</option>
-                   <option value="biweekly">Bi-weekly</option>
-                   <option value="monthly">Monthly</option>
-                 </select>
+                   onChange={value => setNewEvent({...newEvent, recurrenceRule: value as any})}
+                   options={[
+                     { value: 'weekly', label: 'Weekly' },
+                     { value: 'biweekly', label: 'Bi-weekly' },
+                     { value: 'monthly', label: 'Monthly' }
+                   ]}
+                 />
                </div>
                <div>
                  <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Day of Week</label>
-                 <select 
+                 <CustomSelect
                    value={newEvent.dayOfWeek}
-                   onChange={e => setNewEvent({...newEvent, dayOfWeek: parseInt(e.target.value)})}
-                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                 >
-                   {dayNames.map((d, i) => <option key={i} value={i}>{d}</option>)}
-                 </select>
+                   onChange={value => setNewEvent({...newEvent, dayOfWeek: parseInt(value)})}
+                   options={dayNames.map((d, i) => ({ value: i, label: d }))}
+                 />
                </div>
              </div>
            )}
@@ -450,15 +449,15 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
                </div>
                <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Type</label>
-                <select 
+                <CustomSelect
                   value={newEvent.type}
-                  onChange={e => setNewEvent({...newEvent, type: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                >
-                    <option value="Service">Service</option>
-                    <option value="Meeting">Meeting</option>
-                    <option value="Special">Special Event</option>
-                </select>
+                  onChange={value => setNewEvent({...newEvent, type: value})}
+                  options={[
+                    { value: 'Service', label: 'Service' },
+                    { value: 'Meeting', label: 'Meeting' },
+                    { value: 'Special', label: 'Special Event' }
+                  ]}
+                />
                </div>
            </div>
 
@@ -476,16 +475,14 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
            {user?.role === 'admin' && (
              <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-slate-300">Zone</label>
-              <select 
+              <CustomSelect
                 value={newEvent.zoneId}
-                onChange={e => setNewEvent({ ...newEvent, zoneId: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-              >
-                <option value="">All Zones (Global)</option>
-                {zones.map(zone => (
-                  <option key={zone.id} value={zone.id}>{zone.name}</option>
-                ))}
-              </select>
+                onChange={value => setNewEvent({ ...newEvent, zoneId: value })}
+                options={[
+                  { value: '', label: 'All Zones (Global)' },
+                  ...zones.map(zone => ({ value: zone.id, label: zone.name }))
+                ]}
+              />
              </div>
            )}
            

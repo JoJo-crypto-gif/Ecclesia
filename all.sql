@@ -97,7 +97,7 @@ CREATE TABLE public.members (
     dob date,
     gender character varying(10),
     role character varying(50),
-    occupation character varying(100),
+    occupation character varying(500),
     emergency_contact character varying(100),
     emergency_phone character varying(20),
     created_at timestamp with time zone DEFAULT now(),

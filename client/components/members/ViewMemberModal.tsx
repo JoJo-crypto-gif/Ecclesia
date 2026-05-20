@@ -9,6 +9,7 @@ import Modal from '../Modal';
 import { Member, Zone, MemberStatus, MemberChild } from '../../types';
 import { useData } from '../../context/DataContext';
 import { getMemberDisplayName, getMemberTitles } from '../../utils/memberName';
+import { formatOccupation, parseOccupation } from '../../utils/occupation';
 import { apiFetch } from '../../utils/api';
 
 interface MemberAnalytics {
@@ -130,13 +131,47 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Full Address</span>
           <span className="text-slate-800 font-medium dark:text-slate-200">{member.address || 'Not specified'}</span>
         </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Occupation</span>
-          <div className="flex items-center gap-2 text-slate-800 font-bold dark:text-slate-200">
-            <Briefcase size={12} className="text-slate-400" />
-            {member.occupation || 'Not specified'}
-          </div>
-        </div>
+        {(() => {
+          const occ = parseOccupation(member.occupation);
+          return (
+            <>
+              <div>
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Employment Status</span>
+                <span className="text-slate-800 font-bold dark:text-slate-200">{occ.status}</span>
+              </div>
+              {occ.status === 'Employed' && (
+                <>
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Job Title / Role</span>
+                    <span className="text-slate-800 font-bold dark:text-slate-200">{occ.role || 'Not specified'}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Workplace / Employer</span>
+                    <span className="text-slate-800 font-bold dark:text-slate-200">{occ.organization || 'Not specified'}</span>
+                  </div>
+                </>
+              )}
+              {occ.status === 'Student' && (
+                <>
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">School Name</span>
+                    <span className="text-slate-800 font-bold dark:text-slate-200">{occ.organization || 'Not specified'}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">School Location</span>
+                    <span className="text-slate-800 font-bold dark:text-slate-200">{occ.location || 'Not specified'}</span>
+                  </div>
+                  {occ.role && (
+                    <div>
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Course of Study</span>
+                      <span className="text-slate-800 font-bold dark:text-slate-200">{occ.role}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          );
+        })()}
         <div>
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">How they heard</span>
           <div className="flex items-center gap-2 text-indigo-600 font-bold dark:text-indigo-400">

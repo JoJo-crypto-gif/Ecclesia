@@ -6,9 +6,10 @@ interface MobileHeaderProps {
   isOpen: boolean;
   toggleMenu: () => void;
   title?: string;
+  logo?: string;
 }
 
-const MobileHeader: React.FC<MobileHeaderProps> = ({ isOpen, toggleMenu, title = "Ecclesia" }) => {
+const MobileHeader: React.FC<MobileHeaderProps> = ({ isOpen, toggleMenu, title = "Ecclesia", logo }) => {
   return (
     <header className="lg:hidden sticky top-0 z-[60] flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-lg border-b border-slate-200 dark:bg-slate-900/80 dark:border-slate-800 transition-all duration-300">
       <div className="flex items-center gap-3">
@@ -20,7 +21,7 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ isOpen, toggleMenu, title =
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
         <div className="flex items-center gap-2">
-            <Logo size="sm" className="w-8 h-8 rounded-lg shadow-sm" />
+            <Logo size="sm" overrideSrc={logo} className="w-8 h-8 rounded-lg shadow-sm" />
             <span className="font-bold text-slate-900 dark:text-white tracking-tight">{title}</span>
         </div>
       </div>
