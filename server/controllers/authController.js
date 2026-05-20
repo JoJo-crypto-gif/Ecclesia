@@ -4,6 +4,7 @@ import SettingsModel from '../models/settingsModel.js';
 import EmailService from '../services/emailService.js';
 import MembersModel from '../models/membersModel.js';
 import { sendSms } from '../services/messagingService.js';
+import AuditService from '../services/auditService.js';
 
 const SALT_ROUNDS = 10;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -122,6 +123,15 @@ const AuthController = {
           if (saveErr) {
             return next(saveErr);
           }
+          AuditService.log({
+            req,
+            user: safeUser,
+            action: 'LOGIN',
+            module: 'auth',
+            recordId: safeUser.id,
+            recordName: safeUser.name || safeUser.email,
+            description: `User ${safeUser.name || safeUser.email} logged in`,
+          });
           return res.json({ success: true, data: safeUser });
         });
       });
@@ -164,6 +174,15 @@ const AuthController = {
         req.session.user = safeUser;
         req.session.save((saveErr) => {
           if (saveErr) return next(saveErr);
+          AuditService.log({
+            req,
+            user: safeUser,
+            action: 'LOGIN',
+            module: 'auth',
+            recordId: safeUser.id,
+            recordName: safeUser.name || safeUser.email,
+            description: `User ${safeUser.name || safeUser.email} logged in via MFA`,
+          });
           return res.json({ success: true, data: safeUser });
         });
       });
@@ -177,12 +196,24 @@ const AuthController = {
       if (!req.session) {
         return res.json({ success: true });
       }
+      const user = req.session.user;
       req.session.destroy(() => {
         res.clearCookie('ecclesia.sid', {
           httpOnly: true,
           sameSite: sessionCookieSameSite,
           secure: isProduction,
         });
+        if (user) {
+          AuditService.log({
+            req,
+            user,
+            action: 'LOGOUT',
+            module: 'auth',
+            recordId: user.id,
+            recordName: user.name || user.email,
+            description: `User ${user.name || user.email} logged out`,
+          });
+        }
         res.json({ success: true });
       });
     } catch (err) {

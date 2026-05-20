@@ -8,7 +8,8 @@ import usersRoutes from './users.js';
 import settingsRoutes from './settings.js';
 import messagingRoutes from './messaging.js';
 import rolesRoutes from './roles.js';
-import { requireAuth } from '../middleware/auth.js';
+import auditRoutes from './audit.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use('/attendance', attendanceRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/messaging', messagingRoutes);
 router.use('/roles', rolesRoutes);
+router.use('/audit-logs', requireAuth, requireRole(['admin']), auditRoutes);
 
 export default router;

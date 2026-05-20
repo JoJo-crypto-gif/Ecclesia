@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import UsersModel from '../models/usersModel.js';
 import MembersModel from '../models/membersModel.js';
 import RolesModel from '../models/rolesModel.js';
+import AuditService from '../services/auditService.js';
 
 const SALT_ROUNDS = 10;
 
@@ -188,6 +189,18 @@ const UsersController = {
         zoneId: zoneId || null,
       });
 
+      const sessionUser = req.session?.user;
+      AuditService.log({
+        req,
+        user: sessionUser,
+        action: 'CREATE',
+        module: 'users',
+        recordId: user.id,
+        recordName: user.name || user.email,
+        description: `Created system user ${user.name || user.email} with role ${role.name}`,
+        changes: AuditService.computeChanges({}, toSafeUser(user))
+      });
+
       return res.status(201).json({ success: true, data: toSafeUser(user) });
     } catch (err) {
       next(err);
@@ -195,10 +208,25 @@ const UsersController = {
   },
   async delete(req, res, next) {
     try {
+      const sessionUser = req.session?.user;
+      const existing = await UsersModel.findById(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: { message: 'User not found' } });
+      }
       const success = await UsersModel.delete(req.params.id);
       if (!success) {
         return res.status(404).json({ success: false, error: { message: 'User not found' } });
       }
+      AuditService.log({
+        req,
+        user: sessionUser,
+        action: 'DELETE',
+        module: 'users',
+        recordId: existing.id,
+        recordName: existing.name || existing.email,
+        description: `Deleted system user ${existing.name || existing.email}`,
+        changes: AuditService.computeChanges(toSafeUser(existing), {})
+      });
       return res.json({ success: true });
     } catch (err) {
       next(err);
@@ -206,12 +234,30 @@ const UsersController = {
   },
   async updateUser(req, res, next) {
     try {
+      const sessionUser = req.session?.user;
+      const existing = await UsersModel.findById(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: { message: 'User not found' } });
+      }
       const { mfaEnabled } = req.body;
       const updated = await UsersModel.update(req.params.id, {
         mfaEnabled: mfaEnabled !== undefined ? Boolean(mfaEnabled) : undefined
       });
       if (!updated) {
         return res.status(404).json({ success: false, error: { message: 'User not found' } });
+      }
+      const changes = AuditService.computeChanges(toSafeUser(existing), toSafeUser(updated));
+      if (Object.keys(changes).length > 0) {
+        AuditService.log({
+          req,
+          user: sessionUser,
+          action: 'UPDATE',
+          module: 'users',
+          recordId: updated.id,
+          recordName: updated.name || updated.email,
+          description: `Updated system user ${updated.name || updated.email}`,
+          changes
+        });
       }
       return res.json({ success: true, data: toSafeUser(updated) });
     } catch (err) {

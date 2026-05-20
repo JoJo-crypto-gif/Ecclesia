@@ -17,6 +17,7 @@ import { User } from './types';
 import ZoneDashboard from './pages/ZoneDashboard';
 import Settings from './pages/Settings';
 import Reports from './pages/Reports';
+import AuditLogs from './pages/AuditLogs';
 import MobileHeader from './components/MobileHeader';
 import { useLocation } from 'react-router-dom';
 import { apiFetch } from './utils/api';
@@ -301,6 +302,20 @@ const AppInner: React.FC = () => {
             setIsMobileMenuOpen={setIsMobileMenuOpen}
           >
             <Settings />
+          </ProtectedLayout>
+        } />
+
+        <Route path="/audit-logs" element={
+          <ProtectedLayout 
+            user={user} 
+            authLoading={authLoading} 
+            onLogout={handleLogout} 
+            isSidebarCollapsed={isSidebarCollapsed} 
+            toggleSidebar={toggleSidebar} 
+            isMobileMenuOpen={isMobileMenuOpen} 
+            setIsMobileMenuOpen={setIsMobileMenuOpen}
+          >
+            {user?.role === 'admin' ? <AuditLogs /> : <Navigate to="/" replace />}
           </ProtectedLayout>
         } />
         

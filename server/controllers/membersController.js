@@ -1,5 +1,6 @@
 import MembersService from '../services/membersService.js';
 import EventsService from '../services/eventsService.js';
+import AuditService from '../services/auditService.js';
 
 /**
  * Members controller — handles HTTP request/response.
@@ -174,6 +175,16 @@ const MembersController = {
         payload.zoneId = sessionUser.zoneId;
       }
       const member = await MembersService.create(payload);
+      AuditService.log({
+        req,
+        user: sessionUser,
+        action: 'CREATE',
+        module: 'members',
+        recordId: member.id,
+        recordName: `${member.firstName} ${member.lastName}`,
+        description: `Created member ${member.firstName} ${member.lastName}`,
+        changes: AuditService.computeChanges({}, member)
+      });
       res.status(201).json({ success: true, data: member });
     } catch (err) {
       next(err);
@@ -203,6 +214,16 @@ const MembersController = {
       delete data.instanceId;
       delete data.middleName;
       const member = await MembersService.create(data);
+      AuditService.log({
+        req,
+        user: null,
+        action: 'CREATE',
+        module: 'members',
+        recordId: member.id,
+        recordName: `${member.firstName} ${member.lastName}`,
+        description: `Visitor self-registered: ${member.firstName} ${member.lastName}`,
+        changes: AuditService.computeChanges({}, member)
+      });
       res.status(201).json({ success: true, data: member });
     } catch (err) {
       next(err);
@@ -218,17 +239,28 @@ const MembersController = {
       if (sessionUser?.role === 'zone_leader' && !sessionUser.zoneId) {
         return res.status(403).json({ success: false, error: { message: 'No zone assigned' } });
       }
-      if (sessionUser?.role === 'zone_leader') {
-        const existing = await MembersService.getById(req.params.id);
-        if (existing.zoneId !== sessionUser.zoneId) {
-          return res.status(403).json({ success: false, error: { message: 'Access denied' } });
-        }
+      const existing = await MembersService.getById(req.params.id);
+      if (sessionUser?.role === 'zone_leader' && existing.zoneId !== sessionUser.zoneId) {
+        return res.status(403).json({ success: false, error: { message: 'Access denied' } });
       }
       const payload = { ...req.body };
       if (sessionUser?.role === 'zone_leader') {
         payload.zoneId = sessionUser.zoneId;
       }
       const member = await MembersService.update(req.params.id, payload);
+      const changes = AuditService.computeChanges(existing, member);
+      if (Object.keys(changes).length > 0) {
+        AuditService.log({
+          req,
+          user: sessionUser,
+          action: 'UPDATE',
+          module: 'members',
+          recordId: member.id,
+          recordName: `${member.firstName} ${member.lastName}`,
+          description: `Updated member ${member.firstName} ${member.lastName}`,
+          changes
+        });
+      }
       res.json({ success: true, data: member });
     } catch (err) {
       next(err);
@@ -244,7 +276,18 @@ const MembersController = {
       if (sessionUser?.role === 'zone_leader') {
         return res.status(403).json({ success: false, error: { message: 'Access denied' } });
       }
+      const existing = await MembersService.getById(req.params.id);
       const member = await MembersService.delete(req.params.id);
+      AuditService.log({
+        req,
+        user: sessionUser,
+        action: 'DELETE',
+        module: 'members',
+        recordId: existing.id,
+        recordName: `${existing.firstName} ${existing.lastName}`,
+        description: `Deleted member ${existing.firstName} ${existing.lastName}`,
+        changes: AuditService.computeChanges(existing, {})
+      });
       res.json({ success: true, data: member, message: 'Member deleted successfully' });
     } catch (err) {
       next(err);

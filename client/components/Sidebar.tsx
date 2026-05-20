@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Map, LogOut, ChevronLeft, Moon, Sun, QrCode, MessageSquare, Calendar, Settings as SettingsIcon, Gift, FileBarChart } from 'lucide-react';
+import { LayoutDashboard, Users, Map, LogOut, ChevronLeft, Moon, Sun, QrCode, MessageSquare, Calendar, Settings as SettingsIcon, Gift, FileBarChart, History } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import Logo from './Logo';
 import { User } from '../types';
@@ -185,6 +185,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isCollapsed, toggleSidebar,
              {isCollapsed && (
               <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
                   Reports
+              </div>
+            )}
+          </NavLink>
+        )}
+
+        {isAdmin && (
+          <NavLink to="/audit-logs" className={navClasses}>
+            <History size={22} className="min-w-[22px] transition-transform group-hover:scale-110 group-hover:rotate-3" />
+            <span className={`font-medium whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>Audit Logs</span>
+             {isCollapsed && (
+              <div className="absolute left-full ml-4 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-lg">
+                  Audit Logs
               </div>
             )}
           </NavLink>
