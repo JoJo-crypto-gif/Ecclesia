@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Gift, Heart, PartyPopper, Sparkles } from 'lucide-react';
+import { CalendarDays, Droplet, Gift, Heart, PartyPopper, Sparkles } from 'lucide-react';
 import { User } from '../types';
 import { apiFetch } from '../utils/api';
 import CustomSelect from '../components/CustomSelect';
@@ -19,7 +19,7 @@ interface CelebrationsProps {
   user: User | null;
 }
 
-type CelebrationType = 'birthday' | 'anniversary';
+type CelebrationType = 'birthday' | 'anniversary' | 'baptism_anniversary';
 type PeriodType = 'week' | 'month';
 type WindowType = 'current' | 'upcoming' | 'today';
 
@@ -56,6 +56,7 @@ const Celebrations: React.FC<CelebrationsProps> = ({ user }) => {
   // Today's celebrations state
   const [todayBirthdays, setTodayBirthdays] = useState<CelebrationItem[]>([]);
   const [todayAnniversaries, setTodayAnniversaries] = useState<CelebrationItem[]>([]);
+  const [todayBaptismAnniversaries, setTodayBaptismAnniversaries] = useState<CelebrationItem[]>([]);
   const [todayLoading, setTodayLoading] = useState(true);
 
   // Fetch today's celebrations on mount
@@ -63,14 +64,17 @@ const Celebrations: React.FC<CelebrationsProps> = ({ user }) => {
     const fetchToday = async () => {
       setTodayLoading(true);
       try {
-        const [bRes, aRes] = await Promise.all([
+        const [bRes, aRes, baRes] = await Promise.all([
           apiFetch(`/api/members/celebrations?type=birthday&period=week&window=today`),
           apiFetch(`/api/members/celebrations?type=anniversary&period=week&window=today`),
+          apiFetch(`/api/members/celebrations?type=baptism_anniversary&period=week&window=today`),
         ]);
         const bData = await bRes.json();
         const aData = await aRes.json();
+        const baData = await baRes.json();
         if (bData.success) setTodayBirthdays(bData.data || []);
         if (aData.success) setTodayAnniversaries(aData.data || []);
+        if (baData.success) setTodayBaptismAnniversaries(baData.data || []);
       } catch (err) {
         console.error('Failed to fetch today celebrations', err);
       } finally {
@@ -111,10 +115,11 @@ const Celebrations: React.FC<CelebrationsProps> = ({ user }) => {
 
   const title = useMemo(() => {
     if (type === 'birthday') return 'Birthdays';
+    if (type === 'baptism_anniversary') return 'Baptism Anniversaries';
     return 'Wedding Anniversaries';
   }, [type]);
 
-  const todayAll = [...todayBirthdays, ...todayAnniversaries];
+  const todayAll = [...todayBirthdays, ...todayAnniversaries, ...todayBaptismAnniversaries];
   const hasTodayCelebrations = todayAll.length > 0;
 
   const isToday = (dateStr: string) => {
@@ -202,7 +207,7 @@ const Celebrations: React.FC<CelebrationsProps> = ({ user }) => {
                     </h4>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm animate-pulse">
-                        {item.type === 'birthday' ? <Gift size={10} /> : <Heart size={10} />}
+                        {item.type === 'birthday' ? <Gift size={10} /> : item.type === 'baptism_anniversary' ? <Droplet size={10} /> : <Heart size={10} />}
                         TODAY!
                       </span>
                       <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -244,6 +249,16 @@ const Celebrations: React.FC<CelebrationsProps> = ({ user }) => {
               }`}
             >
               <span className="inline-flex items-center gap-1.5"><Heart size={14} /> Anniversaries</span>
+            </button>
+            <button
+              onClick={() => setType('baptism_anniversary')}
+              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm rounded-lg font-bold transition-colors ${
+                type === 'baptism_anniversary'
+                  ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              <span className="inline-flex items-center gap-1.5"><Droplet size={14} /> Baptism</span>
             </button>
           </div>
 

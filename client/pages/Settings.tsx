@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, ImageIcon, RotateCcw, User, ShieldCheck, School, Zap, BellRing, Settings as SettingsIcon, Users, Trash2, Plus, Search, Loader2, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import CustomSelect from '../components/CustomSelect';
 
 const parseBoolean = (value: unknown, fallback = true) => {
@@ -11,6 +12,7 @@ const parseBoolean = (value: unknown, fallback = true) => {
 
 const Settings: React.FC = () => {
   const { hasPermission } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
 
   // Password State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -46,6 +48,7 @@ const Settings: React.FC = () => {
     automatedSmsEnabled: true,
     birthdaySmsEnabled: true,
     anniversarySmsEnabled: true,
+    baptismAnniversarySmsEnabled: true,
     absenteeSmsEnabled: true
   });
   
@@ -101,6 +104,7 @@ const Settings: React.FC = () => {
         automatedSmsEnabled: parseBoolean(settings.automated_sms_enabled, true),
         birthdaySmsEnabled: parseBoolean(settings.birthday_sms_enabled, true),
         anniversarySmsEnabled: parseBoolean(settings.anniversary_sms_enabled, true),
+        baptismAnniversarySmsEnabled: parseBoolean(settings.baptism_anniversary_sms_enabled, true),
         absenteeSmsEnabled: parseBoolean(settings.absentee_sms_enabled, true)
       });
       // Load MFA settings
@@ -303,6 +307,7 @@ const Settings: React.FC = () => {
         automated_sms_enabled: String(automationSettings.automatedSmsEnabled),
         birthday_sms_enabled: String(automationSettings.birthdaySmsEnabled),
         anniversary_sms_enabled: String(automationSettings.anniversarySmsEnabled),
+        baptism_anniversary_sms_enabled: String(automationSettings.baptismAnniversarySmsEnabled),
         absentee_sms_enabled: String(automationSettings.absenteeSmsEnabled)
       };
 
@@ -328,7 +333,7 @@ const Settings: React.FC = () => {
     }
   };
 
-  const toggleAutomationSetting = (key: 'automatedSmsEnabled' | 'birthdaySmsEnabled' | 'anniversarySmsEnabled' | 'absenteeSmsEnabled') => {
+  const toggleAutomationSetting = (key: 'automatedSmsEnabled' | 'birthdaySmsEnabled' | 'anniversarySmsEnabled' | 'baptismAnniversarySmsEnabled' | 'absenteeSmsEnabled') => {
     setAutomationSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -466,11 +471,12 @@ const Settings: React.FC = () => {
         setUserForm({ memberId: '', roleId: '', email: '', password: '', name: '' });
         setMemberSearch('');
         loadUsers();
+        toastSuccess('User saved successfully.');
       } else {
-        alert(data.error?.message || 'Failed to save user.');
+        toastError(data.error?.message || 'Failed to save user.');
       }
     } catch (err) {
-      alert('Failed to save user.');
+      toastError('Failed to save user.');
     } finally {
       setSavingUser(false);
     }
@@ -485,11 +491,12 @@ const Settings: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         loadUsers();
+        toastSuccess('User removed successfully.');
       } else {
-        alert(data.error?.message || 'Failed to delete user.');
+        toastError(data.error?.message || 'Failed to delete user.');
       }
     } catch {
-      alert('Failed to delete user.');
+      toastError('Failed to delete user.');
     }
   };
 
@@ -503,11 +510,12 @@ const Settings: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         setUsers(users.map(u => u.id === id ? { ...u, mfaEnabled: !currentMfa } : u));
+        toastSuccess('User MFA status updated successfully.');
       } else {
-        alert(data.error?.message || 'Failed to update MFA status.');
+        toastError(data.error?.message || 'Failed to update MFA status.');
       }
     } catch {
-      alert('Failed to update MFA status.');
+      toastError('Failed to update MFA status.');
     }
   };
 
@@ -857,6 +865,7 @@ const Settings: React.FC = () => {
                   {[
                     { key: 'birthdaySmsEnabled', label: 'Birthday Greetings', desc: 'Auto-send daily SMS to members celebrating birthdays.' },
                     { key: 'anniversarySmsEnabled', label: 'Wedding Anniversaries', desc: 'Auto-send daily SMS to members celebrating anniversaries.' },
+                    { key: 'baptismAnniversarySmsEnabled', label: 'Baptism Anniversaries', desc: 'Auto-send daily SMS to members celebrating their baptism anniversary.' },
                     { key: 'absenteeSmsEnabled', label: 'Absentee Follow-up', desc: 'Weekly smart check-ins for members missing consecutive services.' }
                   ].map((item) => (
                     <div key={item.key} className={`flex items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${isGlobalDisabled ? 'opacity-50 grayscale' : 'bg-white dark:bg-slate-800'} border-slate-200 dark:border-slate-700`}>
@@ -1384,11 +1393,12 @@ const Settings: React.FC = () => {
                     if (data.success) {
                       loadRoles();
                       setIsRoleModalOpen(false);
+                      toastSuccess('Role saved successfully.');
                     } else {
-                      alert(data.error?.message || 'Failed to save role');
+                      toastError(data.error?.message || 'Failed to save role');
                     }
                   } catch {
-                    alert('An error occurred');
+                    toastError('An error occurred');
                   } finally {
                     setLoadingRoles(false);
                   }

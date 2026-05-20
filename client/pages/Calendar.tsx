@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
 import { ChevronLeft, ChevronRight, Plus, Clock, Users, MapPin, Calendar as CalendarIcon, Repeat } from 'lucide-react';
 import Modal from '../components/Modal';
 import CustomSelect from '../components/CustomSelect';
@@ -20,6 +21,7 @@ interface CalendarProps {
 
 const Calendar: React.FC<CalendarProps> = ({ user }) => {
   const { events, addEvent, fetchAllInstances, updateInstance, generateInstances, zones } = useData();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -178,9 +180,9 @@ const Calendar: React.FC<CalendarProps> = ({ user }) => {
     setIsGenerating(false);
     if (success) {
       setTimeout(loadInstances, 500);
-      alert('Successfully scheduled instances for the next year!');
+      toastSuccess('Successfully scheduled instances for the next year!');
     } else {
-      alert('Failed to generate instances.');
+      toastError('Failed to generate instances.');
     }
   };
 

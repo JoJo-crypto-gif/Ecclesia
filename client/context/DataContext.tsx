@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useAuth } from './AuthContext';
 import { Member, Zone, DashboardStats, MemberStatus, ChurchEvent, EventInstance, AttendanceRecord, Message, ManualMessagePayload } from '../types';
 import { apiFetch } from '../utils/api';
+import { useToast } from './ToastContext';
 
 // Pagination Interface
 export interface Pagination {
@@ -84,6 +85,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { hasPermission } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
@@ -265,11 +267,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await res.json();
       if (data.success) {
         await fetchEvents();
+        toastSuccess('Event created successfully');
         return data.data;
       }
       return null;
     } catch (err) {
       console.error('addEvent error:', err);
+      toastError(err instanceof Error ? err.message : 'Failed to create event');
       return null;
     }
   };
@@ -283,8 +287,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       if (!res.ok) throw new Error('Failed to update event');
       await fetchEvents();
+      toastSuccess('Event updated successfully');
     } catch (err) {
       console.error('updateEvent error:', err);
+      toastError(err instanceof Error ? err.message : 'Failed to update event');
     }
   };
 
@@ -295,8 +301,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       if (!res.ok) throw new Error('Failed to delete event');
       await fetchEvents();
+      toastSuccess('Event deleted successfully');
     } catch (err) {
       console.error('deleteEvent error:', err);
+      toastError(err instanceof Error ? err.message : 'Failed to delete event');
     }
   };
 
@@ -340,8 +348,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ date }),
       });
       if (!res.ok) throw new Error('Failed to create instance');
+      toastSuccess('Event instance created successfully');
     } catch (err) {
       console.error('createInstance error:', err);
+      toastError(err instanceof Error ? err.message : 'Failed to create event instance');
     }
   };
 
@@ -353,9 +363,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error('Failed to update instance');
+      toastSuccess('Event instance updated successfully');
       return true;
     } catch (err) {
       console.error('updateInstance error:', err);
+      toastError('Failed to update event instance');
       return false;
     }
   };
@@ -368,9 +380,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ weeks }),
       });
       if (!res.ok) throw new Error('Failed to generate instances');
+      toastSuccess('Event instances generated successfully');
       return true;
     } catch (err) {
       console.error('generateInstances error:', err);
+      toastError('Failed to generate event instances');
       return false;
     }
   };
@@ -390,21 +404,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        return { success: false, message: errData?.error?.message || 'Check-in failed' };
+        const errMsg = errData?.error?.message || 'Check-in failed';
+        toastError(errMsg);
+        return { success: false, message: errMsg };
       }
       
       const data = await res.json();
       // Use the member returned from the server (which might have been resolved from visitorName)
       // OR fall back to local lookup if memberId was passed explicitly
       const member = data.data.member || (memberId ? members.find(m => m.id === memberId) : undefined);
+      const successMsg = `Checked in ${member ? member.firstName : visitorName || 'Guest'}`;
+      toastSuccess(successMsg);
       
       return { 
         success: true, 
-        message: `Checked in ${member ? member.firstName : visitorName || 'Guest'}`,
+        message: successMsg,
         member 
       };
     } catch (err) {
       console.error('checkIn error:', err);
+      toastError('Check-in failed');
       return { success: false, message: 'Check-in failed' };
     }
   };
@@ -431,8 +450,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         method: 'DELETE',
       });
       if (!res.ok) throw new Error('Failed to remove attendance record');
+      toastSuccess('Attendance record removed');
     } catch (err) {
       console.error('removeAttendanceRecord error:', err);
+      toastError('Failed to remove attendance record');
     }
   };
 
@@ -442,8 +463,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         method: 'DELETE',
       });
       if (!res.ok) throw new Error('Failed to remove attendance record');
+      toastSuccess('Attendance record removed');
     } catch (err) {
       console.error('removeAttendanceById error:', err);
+      toastError('Failed to remove attendance record');
     }
   };
 
@@ -487,8 +510,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!res.ok) throw new Error('Failed to add member');
       await fetchMembers();
       await fetchStats();
+      toastSuccess('Member added successfully');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add member');
+      const errMsg = err instanceof Error ? err.message : 'Failed to add member';
+      setError(errMsg);
+      toastError(errMsg);
       throw err;
     }
   };
@@ -503,8 +529,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!res.ok) throw new Error('Failed to update member');
       await fetchMembers();
       await fetchStats();
+      toastSuccess('Member details updated successfully');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update member');
+      const errMsg = err instanceof Error ? err.message : 'Failed to update member';
+      setError(errMsg);
+      toastError(errMsg);
       throw err;
     }
   };
@@ -517,8 +546,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!res.ok) throw new Error('Failed to delete member');
       await fetchMembers();
       await fetchStats();
+      toastSuccess('Member deleted successfully');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete member');
+      const errMsg = err instanceof Error ? err.message : 'Failed to delete member';
+      setError(errMsg);
+      toastError(errMsg);
       throw err;
     }
   };
@@ -534,8 +566,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ));
       await fetchMembers();
       await fetchStats();
+      toastSuccess('Selected members updated successfully');
      } catch (err) {
        setError('Failed to bulk update');
+       toastError('Failed to bulk update members');
      }
   };
 
@@ -548,8 +582,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ));
         await fetchMembers();
         await fetchStats();
+        toastSuccess('Selected members deleted successfully');
        } catch (err) {
          setError('Failed to bulk delete');
+         toastError('Failed to bulk delete members');
        }
   };
 
@@ -566,9 +602,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!res.ok) throw new Error('Failed to create zone');
       const data = await res.json();
       fetchZones();
+      toastSuccess('Zone created successfully');
       return data.data || null;
     } catch (err) {
-      console.error(err);
+      const errMsg = err instanceof Error ? err.message : 'Failed to create zone';
+      toastError(errMsg);
       throw err;
     }
   };
@@ -583,9 +621,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!res.ok) throw new Error('Failed to update zone');
       const data = await res.json();
       fetchZones();
+      toastSuccess('Zone updated successfully');
       return data.data || null;
     } catch (err) {
-      console.error(err);
+      const errMsg = err instanceof Error ? err.message : 'Failed to update zone';
+      toastError(errMsg);
       throw err;
     }
   };
@@ -597,8 +637,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       if (!res.ok) throw new Error('Failed to delete zone');
       fetchZones();
+      toastSuccess('Zone deleted successfully');
     } catch (err) {
-      console.error(err);
+      const errMsg = err instanceof Error ? err.message : 'Failed to delete zone';
+      toastError(errMsg);
       throw err;
     }
   };
@@ -653,11 +695,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.ok) {
         const data = await res.json();
         setSettings(data.data);
+        toastSuccess('System settings saved successfully');
         return true;
       }
+      toastError('Failed to save settings');
       return false;
     } catch (err) {
       console.error(err);
+      toastError('Failed to save settings');
       return false;
     }
   };
@@ -698,10 +743,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setMessages(prev => [newMessage, ...prev]);
       await fetchMessages(); // Reload from DB to ensure persistence
+      toastSuccess('Message sent successfully');
       return { success: true };
     } catch (err) {
       console.error("sendMessage error:", err);
-      return { success: false, message: err instanceof Error ? err.message : 'Unknown error' };
+      const errMsg = err instanceof Error ? err.message : 'Unknown error';
+      toastError(errMsg);
+      return { success: false, message: errMsg };
     }
   };
 

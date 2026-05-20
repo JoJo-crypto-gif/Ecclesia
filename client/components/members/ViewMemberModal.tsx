@@ -100,6 +100,14 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
             </div>
             <span className="font-medium underline-offset-4">{member.phone}</span>
           </a>
+          {member.whatsapp && (
+            <a href={`https://wa.me/${member.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors group">
+              <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 dark:bg-slate-800 dark:border-slate-700 group-hover:border-emerald-200 dark:group-hover:border-emerald-500/30 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 transition-all">
+                <MessageSquare size={14} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
+              </div>
+              <span className="font-medium underline-offset-4">{member.whatsapp} (WhatsApp)</span>
+            </a>
+          )}
         </div>
       </div>
     </div>
@@ -120,6 +128,10 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
           <span className="text-slate-800 font-bold dark:text-slate-200">{member.gender || 'Not specified'}</span>
         </div>
         <div>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Hometown</span>
+          <span className="text-slate-800 font-bold dark:text-slate-200">{member.homeTown || 'Not specified'}</span>
+        </div>
+        <div>
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date of Birth & Age</span>
           <span className="text-slate-800 font-bold dark:text-slate-200">
             {member.dob ? (
@@ -130,6 +142,12 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
         <div className="col-span-2">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Full Address</span>
           <span className="text-slate-800 font-medium dark:text-slate-200">{member.address || 'Not specified'}</span>
+          {member.landmark && (
+            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-200/50 dark:border-slate-700/50 inline-block">
+              <span className="font-bold text-slate-600 dark:text-slate-300">📍 Landmark: </span>
+              {member.landmark}
+            </div>
+          )}
         </div>
         {(() => {
           const occ = parseOccupation(member.occupation);
@@ -219,16 +237,16 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.baptismDate || 'Not specified'}</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Method</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.baptismMethod || 'Not specified'}</span>
-              </div>
-              <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Minister</span>
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.baptizedBy || 'Not specified'}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Location</span>
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{member.baptismChurch || 'Not specified'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Brother's Keeper</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.brothersKeeper || 'Not assigned'}</span>
               </div>
             </div>
           </div>
@@ -257,7 +275,7 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
 
       {member.maritalStatus === 'Married' && (
         <div className="bg-slate-100/50 p-4 rounded-xl dark:bg-slate-800/80">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Spouse Name</span>
               <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.spouseName || 'Not specified'}</span>
@@ -272,6 +290,12 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
                 <span className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono">Not specified</span>
               )}
             </div>
+            {member.spouseChurch && (
+              <div className="sm:col-span-2 border-t border-slate-200/50 pt-3 dark:border-slate-700/50">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Spouse's Church</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">⛪ {member.spouseChurch}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

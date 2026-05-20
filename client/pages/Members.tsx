@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
 import { Member, MemberStatus, User as AppUser } from '../types';
 import { 
   Search, Plus, Edit2, Trash2, Mail, Phone,
@@ -20,6 +21,7 @@ interface MembersProps {
 }
 
 const Members: React.FC<MembersProps> = ({ user }) => {
+  const { warning: toastWarning } = useToast();
   const { 
     members, zones, stats, loading, 
     pagination, setPage, setLimit, setSearchTerm, setStatusFilter, setZoneFilter, setBaptizedFilter, setGenderFilter,
@@ -161,7 +163,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
 
   const handleSaveMember = (data: Partial<Member>) => {
     if (isZoneLeader && !user?.zoneId) {
-      alert('Your account has no assigned zone. Contact an admin.');
+      toastWarning('Your account has no assigned zone. Contact an admin.');
       return;
     }
 

@@ -47,6 +47,7 @@ const formatMessage = (template, member) => {
   let msg = template.replace(/\[FirstName\]/gi, member.first_name || '');
   msg = msg.replace(/\[LastName\]/gi, member.last_name || '');
   msg = msg.replace(/\[YearsMarried\]/gi, getYearsSince(member.marriage_date));
+  msg = msg.replace(/\[YearsSinceBaptism\]/gi, getYearsSince(member.baptism_date));
   return msg;
 };
 
@@ -222,6 +223,60 @@ const sendAnniversarySMS = async () => {
   }
 };
 
+const sendBaptismAnniversarySMS = async () => {
+  if (!(await isAutomationEnabled('baptism_anniversary_sms_enabled', 'ENABLE_BAPTISM_ANNIVERSARY_SMS'))) return;
+  console.log('[Cron] Running Daily Baptism Anniversary SMS check...');
+
+  try {
+    const template = await SettingsModel.getSetting('baptism_anniversary_sms_template');
+    if (!template) {
+      console.log('[Cron] No baptism anniversary sms template found. Skipping.');
+      return;
+    }
+
+    const result = await query(`
+      SELECT id, first_name, last_name, phone, baptism_date
+      FROM members
+      WHERE status = 'Active'
+        AND is_baptized = true
+        AND baptism_date IS NOT NULL
+        AND phone IS NOT NULL
+        AND EXTRACT(MONTH FROM baptism_date) = EXTRACT(MONTH FROM CURRENT_DATE)
+        AND EXTRACT(DAY FROM baptism_date) = EXTRACT(DAY FROM CURRENT_DATE)
+    `);
+
+    const members = result.rows;
+    if (members.length === 0) {
+      console.log('[Cron] No baptism anniversaries today.');
+      return;
+    }
+
+    console.log(`[Cron] Found ${members.length} baptism anniversaries today. Dispatching SMS...`);
+    let sentCount = 0;
+    for (const member of members) {
+      const msg = formatMessage(template, member);
+      const result = await sendSms(msg, [member.phone]);
+      if (result.success) sentCount++;
+    }
+
+    if (sentCount > 0) {
+      await MessagesModel.create({
+        content: template,
+        channel: 'sms',
+        recipientType: 'baptism_anniversary',
+        recipientLabel: 'Baptized Members',
+        recipientCount: sentCount,
+        status: 'sent',
+        type: 'automated'
+      });
+    }
+
+    console.log('[Cron] Baptism Anniversary SMS dispatch complete.');
+  } catch (error) {
+    console.error('[Cron] Error in sendBaptismAnniversarySMS:', error);
+  }
+};
+
 const syncPastEventInstances = async () => {
   try {
     const updatedCount = await EventsService.syncPastInstances();
@@ -245,6 +300,11 @@ export const initCronJobs = () => {
   // Anniversary Job: Run every day at 08:10 AM
   cron.schedule('10 8 * * *', () => {
     sendAnniversarySMS();
+  });
+
+  // Baptism Anniversary Job: Run every day at 08:20 AM
+  cron.schedule('20 8 * * *', () => {
+    sendBaptismAnniversarySMS();
   });
 
   // Absentee Job: Run every Sunday at 14:30 (2:30 PM)

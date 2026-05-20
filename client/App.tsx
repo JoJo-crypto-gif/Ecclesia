@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import KioskMode from './pages/KioskMode';
 import { DataProvider, useData } from './context/DataContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import { User } from './types';
 import ZoneDashboard from './pages/ZoneDashboard';
 import Settings from './pages/Settings';
@@ -327,11 +328,13 @@ const AppInner: React.FC = () => {
 const App: React.FC = () => {
   return (
     <HashRouter>
-      <AuthProvider>
-        <DataProvider>
-          <AppInner />
-        </DataProvider>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <DataProvider>
+            <AppInner />
+          </DataProvider>
+        </AuthProvider>
+      </ToastProvider>
     </HashRouter>
   );
 };

@@ -44,6 +44,10 @@ export interface Member {
   marriageDate?: string | null;
   spouseName?: string | null;
   spousePhone?: string | null;
+  spouseChurch?: string | null;
+  landmark?: string;
+  whatsapp?: string;
+  homeTown?: string;
   
   // Parent details
   motherName?: string;
@@ -55,8 +59,8 @@ export interface Member {
   isBaptized?: boolean;
   baptismDate?: string | null;
   baptizedBy?: string | null;
-  baptismMethod?: 'Immersion' | 'Sprinkling' | null;
   baptismChurch?: string | null;
+  brothersKeeper?: string;
 
   // Children
   children?: MemberChild[];

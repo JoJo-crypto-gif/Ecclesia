@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, FileText, Users, Calendar, Filter, X } from 'lucide-react';
 import Modal from '../Modal';
 import { useData } from '../../context/DataContext';
+import { useToast } from '../../context/ToastContext';
 import { MemberStatus } from '../../types';
 import CustomSelect from '../CustomSelect';
 
@@ -19,6 +20,7 @@ interface ReportGenerationModalProps {
 
 const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ isOpen, onClose }) => {
   const { members, events, fetchAllInstances, fetchAttendance } = useData();
+  const { error: toastError } = useToast();
   const [reportType, setReportType] = useState<'attendance' | 'members'>('attendance');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [memberStatusFilter, setMemberStatusFilter] = useState<string>('all');
@@ -41,7 +43,7 @@ const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ isOpen, o
         const instances = await fetchAllInstances(date, date);
         
         if (instances.length === 0) {
-            alert('No events found for this date.');
+            toastError('No events found for this date.');
             setIsGenerating(false);
             return;
         }
@@ -98,7 +100,7 @@ const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ isOpen, o
       onClose();
     } catch (err) {
       console.error("Report generation failed", err);
-      alert("Failed to generate report. Please try again.");
+      toastError("Failed to generate report. Please try again.");
     } finally {
       setIsGenerating(false);
     }

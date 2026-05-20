@@ -102,7 +102,7 @@ const MembersModel = {
       maritalStatus, marriageDate, spouseName, spousePhone,
       motherName, motherStatus, fatherName, fatherStatus,
       isBaptized, baptismDate, baptizedBy, baptismMethod, baptismChurch,
-      children, exMemberReason
+      children, exMemberReason, landmark, whatsapp, spouseChurch, homeTown, brothersKeeper
     } = data;
 
     const result = await query(
@@ -113,14 +113,14 @@ const MembersModel = {
         marital_status, marriage_date, spouse_name, spouse_phone,
         mother_name, mother_status, father_name, father_status,
         is_baptized, baptism_date, baptized_by, baptism_method, baptism_church,
-        children, ex_member_reason
+        children, ex_member_reason, landmark, whatsapp, spouse_church, home_town, brothers_keeper
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8,
         $9, $10, $11, $12, $13, $14,
         $15, $16, $17, $18, $19,
         $20, $21, $22, $23, $24, $25, $26, $27,
         $28, $29, $30, $31, $32,
-        $33, $34
+        $33, $34, $35, $36, $37, $38, $39
       ) RETURNING *`,
       [
         firstName, lastName, otherName || null, JSON.stringify(Array.isArray(titles) ? titles : []),
@@ -131,7 +131,8 @@ const MembersModel = {
         discoverySource || null, maritalStatus || null, marriageDate || null, spouseName || null, spousePhone || null,
         motherName || null, motherStatus || null, fatherName || null, fatherStatus || null,
         isBaptized || false, baptismDate || null, baptizedBy || null, baptismMethod || null, baptismChurch || null,
-        JSON.stringify(children || []), exMemberReason || null
+        JSON.stringify(children || []), exMemberReason || null,
+        landmark || null, whatsapp || null, spouseChurch || null, homeTown || null, brothersKeeper || null
       ]
     );
 
@@ -178,6 +179,11 @@ const MembersModel = {
       baptismChurch: 'baptism_church',
       children: 'children',
       exMemberReason: 'ex_member_reason',
+      landmark: 'landmark',
+      whatsapp: 'whatsapp',
+      spouseChurch: 'spouse_church',
+      homeTown: 'home_town',
+      brothersKeeper: 'brothers_keeper',
     };
 
     const setClauses = [];
@@ -253,14 +259,19 @@ const MembersModel = {
    * Get members eligible for a celebration type.
    */
   async getCelebrationMembers(type, zoneId) {
-    const dateColumn = type === 'anniversary' ? 'marriage_date' : 'dob';
+    const isBaptismAnniversary = type === 'baptism_anniversary';
     const isAnniversary = type === 'anniversary';
+    const dateColumn = isBaptismAnniversary ? 'baptism_date' : (isAnniversary ? 'marriage_date' : 'dob');
     const params = [];
     let paramIndex = 1;
     let whereClause = `WHERE status = 'Active' AND ${dateColumn} IS NOT NULL`;
 
     if (isAnniversary) {
       whereClause += ` AND marital_status = 'Married'`;
+    }
+
+    if (isBaptismAnniversary) {
+      whereClause += ` AND is_baptized = true`;
     }
 
     if (zoneId) {
@@ -276,7 +287,9 @@ const MembersModel = {
         first_name,
         last_name,
         avatar_url
-        ${isAnniversary ? ', marriage_date, marital_status' : ', dob'}
+        ${isAnniversary ? ', marriage_date, marital_status' : ''}
+        ${isBaptismAnniversary ? ', baptism_date' : ''}
+        ${!isAnniversary && !isBaptismAnniversary ? ', dob' : ''}
       FROM members
       ${whereClause}
       ORDER BY first_name ASC, last_name ASC
@@ -364,6 +377,62 @@ const MembersModel = {
       discoveryDistribution: discoveryResult.rows,
       zoneDistribution: zoneDistributionResult.rows,
     };
+  },
+
+  /**
+   * Get historical active members count by age group over the last 6 months.
+   */
+  async getAgeTrends(zoneId) {
+    const params = [];
+    let zoneFilter = '';
+    if (zoneId) {
+      params.push(zoneId);
+      zoneFilter = 'AND m.zone_id = $1';
+    }
+
+    const queryStr = `
+      WITH month_series AS (
+        SELECT generate_series(
+          DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '5 months',
+          DATE_TRUNC('month', CURRENT_DATE),
+          INTERVAL '1 month'
+        )::date AS month_date
+      ),
+      member_monthly_ages AS (
+        SELECT
+          ms.month_date,
+          TO_CHAR(ms.month_date, 'Mon YYYY') as period_name,
+          m.id,
+          CASE
+            WHEN m.dob IS NULL THEN 'Unknown'
+            WHEN EXTRACT(YEAR FROM AGE(ms.month_date, m.dob)) < 18 THEN 'Under 18'
+            WHEN EXTRACT(YEAR FROM AGE(ms.month_date, m.dob)) BETWEEN 18 AND 25 THEN '18-25'
+            WHEN EXTRACT(YEAR FROM AGE(ms.month_date, m.dob)) BETWEEN 26 AND 35 THEN '26-35'
+            WHEN EXTRACT(YEAR FROM AGE(ms.month_date, m.dob)) BETWEEN 36 AND 45 THEN '36-45'
+            WHEN EXTRACT(YEAR FROM AGE(ms.month_date, m.dob)) BETWEEN 46 AND 60 THEN '46-60'
+            WHEN EXTRACT(YEAR FROM AGE(ms.month_date, m.dob)) > 60 THEN '60+'
+          END AS age_group
+        FROM month_series ms
+        LEFT JOIN members m ON m.status = 'Active'
+          AND m.join_date <= (ms.month_date + INTERVAL '1 month' - INTERVAL '1 day')::date
+          ${zoneFilter}
+      )
+      SELECT
+        period_name as name,
+        month_date,
+        COALESCE(COUNT(CASE WHEN age_group = 'Under 18' THEN 1 END), 0)::int AS "Under 18",
+        COALESCE(COUNT(CASE WHEN age_group = '18-25' THEN 1 END), 0)::int AS "18-25",
+        COALESCE(COUNT(CASE WHEN age_group = '26-35' THEN 1 END), 0)::int AS "26-35",
+        COALESCE(COUNT(CASE WHEN age_group = '36-45' THEN 1 END), 0)::int AS "36-45",
+        COALESCE(COUNT(CASE WHEN age_group = '46-60' THEN 1 END), 0)::int AS "46-60",
+        COALESCE(COUNT(CASE WHEN age_group = '60+' THEN 1 END), 0)::int AS "60+"
+      FROM member_monthly_ages
+      GROUP BY month_date, period_name
+      ORDER BY month_date ASC;
+    `;
+
+    const result = await query(queryStr, params);
+    return result.rows;
   },
 };
 

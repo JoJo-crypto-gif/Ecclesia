@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Modal from '../Modal';
 import CustomSelect from '../CustomSelect';
+import { useToast } from '../../context/ToastContext';
 import { Member, MemberChild, MemberStatus, Zone } from '../../types';
 import { parseOccupation, serializeOccupation, EmploymentDetails } from '../../utils/occupation';
 
@@ -82,15 +83,12 @@ const DISCOVERY_SOURCE_OPTIONS = [
   { value: 'Other', label: 'Other' },
 ];
 
-const BAPTISM_METHOD_OPTIONS = [
-  { value: '', label: '-- Select Method --' },
-  { value: 'Immersion', label: 'Immersion' },
-  { value: 'Sprinkling', label: 'Sprinkling' },
-];
+
 
 const MemberWizardModal: React.FC<MemberWizardModalProps> = ({ 
   isOpen, onClose, editingMember, onSave, zones, isZoneLocked = false, lockedZoneId, lockedZoneName
 }) => {
+  const { error: toastError } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
   const [formData, setFormData] = useState<Partial<Member>>({});
@@ -130,11 +128,17 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       const nextFormData: Partial<Member> = editingMember
-        ? { ...editingMember }
+        ? { 
+            ...editingMember,
+            gender: editingMember.gender || 'Male',
+            discoverySource: editingMember.discoverySource || '',
+          }
         : {
             status: MemberStatus.Active,
             joinDate: new Date().toISOString().split('T')[0],
-            role: 'Member'
+            role: 'Member',
+            gender: 'Male',
+            discoverySource: '',
           };
 
       if (isZoneLocked && lockedZoneId) {
@@ -164,7 +168,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
         setIsCameraOpen(true);
     } catch (err) {
         console.error("Error accessing camera:", err);
-        alert("Unable to access camera. Please ensure you have granted camera permissions.");
+        toastError("Unable to access camera. Please ensure you have granted camera permissions.");
     }
   };
 
@@ -223,6 +227,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
       if (!formData.address) newErrors.push('Residential address is required.');
       if (!formData.emergencyContact) newErrors.push('Emergency contact name is required.');
       if (!formData.emergencyPhone || !validatePhone(formData.emergencyPhone)) newErrors.push('Emergency contact phone must be exactly 10 digits.');
+      if (formData.whatsapp && !validatePhone(formData.whatsapp)) newErrors.push('Other number (WhatsApp) must be exactly 10 digits.');
     } else if (currentStep === 3) {
       if (!formData.maritalStatus) newErrors.push('Marital status is required.');
       if (!formData.motherName || !formData.fatherName) newErrors.push('Mother and father names are required.');
@@ -288,12 +293,16 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
         marriageDate: isMarried ? (formData.marriageDate || null) : null,
         spouseName: isMarried ? (formData.spouseName || null) : null,
         spousePhone: isMarried ? (formData.spousePhone || null) : null,
+        spouseChurch: isMarried ? (formData.spouseChurch || null) : null,
+        landmark: formData.landmark || null,
+        whatsapp: formData.whatsapp || null,
+        homeTown: formData.homeTown || null,
         
         isBaptized,
         baptismDate: isBaptized ? (formData.baptismDate || null) : null,
         baptizedBy: isBaptized ? (formData.baptizedBy || null) : null,
-        baptismMethod: isBaptized ? (formData.baptismMethod || null) : null,
         baptismChurch: isBaptized ? (formData.baptismChurch || null) : null,
+        brothersKeeper: isBaptized ? (formData.brothersKeeper || null) : null,
       };
 
       const payload = isZoneLocked && lockedZoneId
@@ -401,7 +410,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
               </div>
             )}
             
-            <div className="min-h-[340px] overflow-hidden relative">
+            <div className="min-h-[340px] overflow-visible relative">
                 {/* STEP 1: PERSONAL INFO */}
                 {currentStep === 1 && (
                     <div className={`space-y-6 ${direction === 'right' ? 'slide-in-right' : 'slide-in-left'}`}>
@@ -591,6 +600,17 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                 />
                             </div>
                         </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Hometown <span className="text-slate-400 font-normal normal-case text-[11px]">(optional)</span></label>
+                            <input 
+                                type="text" 
+                                value={formData.homeTown || ''} 
+                                onChange={e => setFormData({...formData, homeTown: e.target.value})}
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                placeholder="e.g. Kumasi, Sunyani, Tamale"
+                            />
+                        </div>
                     </div>
                 )}
 
@@ -646,6 +666,28 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                 </div>
                             </div>
                             <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Other Number (WhatsApp) <span className="font-normal lowercase opacity-70">(opt)</span></label>
+                                <div className="relative">
+                                    <Phone className="absolute left-4 top-3.5 text-slate-400" size={18} />
+                                    <input 
+                                        type="tel" 
+                                        maxLength={10}
+                                        value={formData.whatsapp || ''} 
+                                        onChange={e => {
+                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            setFormData({...formData, whatsapp: val});
+                                            setTouched({...touched, whatsapp: true});
+                                        }}
+                                        onBlur={() => setTouched({...touched, whatsapp: true})}
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                        placeholder="Optional 10 digits"
+                                    />
+                                    {touched.whatsapp && formData.whatsapp && formData.whatsapp.length > 0 && formData.whatsapp.length < 10 && (
+                                        <span className="text-[10px] text-rose-500 absolute -bottom-4 left-4">Must be exactly 10 digits</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Residential Address <span className="text-rose-500">*</span></label>
                                 <div className="relative">
                                     <MapPin className="absolute left-4 top-3.5 text-slate-400" size={18} />
@@ -654,6 +696,19 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                         onChange={e => setFormData({...formData, address: e.target.value})}
                                         className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all h-24 resize-none dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
                                         placeholder="Full address here..."
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Landmark / Direction</label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-4 top-3.5 text-slate-400" size={18} />
+                                    <input 
+                                        type="text" 
+                                        value={formData.landmark || ''} 
+                                        onChange={e => setFormData({...formData, landmark: e.target.value})}
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40"
+                                        placeholder="e.g. Near City Mall, opposite Green Park"
                                     />
                                 </div>
                             </div>
@@ -720,7 +775,8 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                        maritalStatus: maritalStatus as any,
                                        marriageDate: maritalStatus === 'Married' ? (formData.marriageDate || '') : null,
                                        spouseName: maritalStatus === 'Married' ? (formData.spouseName || '') : null,
-                                       spousePhone: maritalStatus === 'Married' ? (formData.spousePhone || '') : null
+                                       spousePhone: maritalStatus === 'Married' ? (formData.spousePhone || '') : null,
+                                       spouseChurch: maritalStatus === 'Married' ? (formData.spouseChurch || '') : null
                                    });
                                }}
                                options={MARITAL_STATUS_OPTIONS}
@@ -772,6 +828,16 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                           )}
                                       </div>
                                   </div>
+                              </div>
+                              <div>
+                                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Spouse's Church</label>
+                                  <input
+                                      type="text"
+                                      value={formData.spouseChurch || ''}
+                                      onChange={e => setFormData({ ...formData, spouseChurch: e.target.value })}
+                                      placeholder="Spouse's Church (optional)"
+                                      className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                  />
                               </div>
                           </div>
                         )}
@@ -966,7 +1032,8 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                         <div className="text-center mb-6">
                              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Church Involvement</h3>
                              <p className="text-slate-500 text-sm dark:text-slate-400">Zone, role and membership status</p>
-                                              <div className="grid grid-cols-2 gap-4">
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">
                                   {isZoneLocked ? 'Assigned Zone' : 'Assign Zone'}
@@ -1016,7 +1083,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                options={ROLE_OPTIONS}
                                placeholder="-- Select Role --"
                            />
-                        </div>      </div>
+                        </div>
 
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Date Joined</label>
@@ -1082,8 +1149,8 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                             isBaptized: false,
                                             baptismDate: null,
                                             baptizedBy: null,
-                                            baptismMethod: null,
-                                            baptismChurch: null
+                                            baptismChurch: null,
+                                            brothersKeeper: null
                                          })}
                                          className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
                                              formData.isBaptized === false || formData.isBaptized === undefined
@@ -1098,43 +1165,44 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
 
                              {formData.isBaptized && (
                                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl dark:bg-slate-800/60 dark:border-slate-700 space-y-4">
-                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                         <div>
-                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Date of Baptism</label>
-                                             <input
-                                                 type="date"
-                                                 value={formData.baptismDate || ''}
-                                                 onChange={e => setFormData({ ...formData, baptismDate: e.target.value })}
-                                                 className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white text-slate-600"
-                                             />
-                                         </div>
-                                         <div>
-                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Method</label>
-                                             <CustomSelect
-                                                 value={formData.baptismMethod || ''}
-                                                 onChange={val => setFormData({ ...formData, baptismMethod: val as any })}
-                                                 options={BAPTISM_METHOD_OPTIONS}
-                                                 placeholder="-- Select Method --"
-                                             />
-                                         </div>
-                                     </div>
                                      <div>
-                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Officiating Minister</label>
+                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Date of Baptism</label>
                                          <input
-                                             type="text"
-                                             value={formData.baptizedBy || ''}
-                                             onChange={e => setFormData({ ...formData, baptizedBy: e.target.value })}
-                                             placeholder="Pastor's Name"
-                                             className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                             type="date"
+                                             value={formData.baptismDate || ''}
+                                             onChange={e => setFormData({ ...formData, baptismDate: e.target.value })}
+                                             className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white text-slate-600"
                                          />
                                      </div>
+                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                         <div>
+                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Officiating Minister</label>
+                                             <input
+                                                 type="text"
+                                                 value={formData.baptizedBy || ''}
+                                                 onChange={e => setFormData({ ...formData, baptizedBy: e.target.value })}
+                                                 placeholder="Pastor's Name"
+                                                 className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                             />
+                                         </div>
+                                         <div>
+                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Church / Location</label>
+                                             <input
+                                                 type="text"
+                                                 value={formData.baptismChurch || ''}
+                                                 onChange={e => setFormData({ ...formData, baptismChurch: e.target.value })}
+                                                 placeholder="Where were they baptized?"
+                                                 className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
+                                             />
+                                         </div>
+                                     </div>
                                      <div>
-                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Church / Location</label>
+                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Brother's Keeper <span className="text-slate-400 font-normal normal-case text-[11px]">(optional)</span></label>
                                          <input
                                              type="text"
-                                             value={formData.baptismChurch || ''}
-                                             onChange={e => setFormData({ ...formData, baptismChurch: e.target.value })}
-                                             placeholder="Where were they baptized?"
+                                             value={formData.brothersKeeper || ''}
+                                             onChange={e => setFormData({ ...formData, brothersKeeper: e.target.value })}
+                                             placeholder="Name of spiritual mentor or accountability partner"
                                              className="w-full h-[50px] px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
                                          />
                                      </div>

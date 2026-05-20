@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
+import { useToast } from '../context/ToastContext';
 import { Calendar, Plus, QrCode, Users, Scan, Repeat, Trash2, FileText, UserCheck, Clock, MapPin, ChevronDown } from 'lucide-react';
 import Modal from '../components/Modal';
 import CustomSelect from '../components/CustomSelect';
@@ -19,6 +20,7 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
     events, addEvent, deleteEvent, members, zones,
     fetchInstances, checkIn, fetchAttendance, removeAttendanceRecord
   } = useData();
+  const { error: toastError } = useToast();
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<ChurchEvent | null>(null);
@@ -167,7 +169,7 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
     if (instance) {
       navigate(`/kiosk/${instance.id}`);
     } else {
-      alert('No instance found for this event.');
+      toastError('No instance found for this event.');
     }
   };
 

@@ -43,7 +43,7 @@ const MembersController = {
       const window = (req.query.window || 'current').toString().toLowerCase();
       const referenceDate = req.query.date ? req.query.date.toString() : undefined;
 
-      const validTypes = ['birthday', 'anniversary'];
+      const validTypes = ['birthday', 'anniversary', 'baptism_anniversary'];
       const validPeriods = ['week', 'month'];
       const validWindows = ['current', 'upcoming', 'today'];
 
@@ -140,6 +140,20 @@ const MembersController = {
       const zoneId = sessionUser?.role === 'zone_leader' ? sessionUser.zoneId : undefined;
       const stats = await MembersService.getStats(zoneId);
       res.json({ success: true, data: stats });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
+   * GET /api/members/age-trends
+   */
+  async getAgeTrends(req, res, next) {
+    try {
+      const sessionUser = req.session?.user;
+      const zoneId = sessionUser?.role === 'zone_leader' ? sessionUser.zoneId : undefined;
+      const trends = await MembersService.getAgeTrends(zoneId);
+      res.json({ success: true, data: trends });
     } catch (err) {
       next(err);
     }

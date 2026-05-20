@@ -64,6 +64,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
   // Templates State
   const [birthdayTemplate, setBirthdayTemplate] = useState('');
   const [anniversaryTemplate, setAnniversaryTemplate] = useState('');
+  const [baptismAnniversaryTemplate, setBaptismAnniversaryTemplate] = useState('');
   const [absenteeTemplate, setAbsenteeTemplate] = useState('');
   const [isSavingTemplates, setIsSavingTemplates] = useState(false);
   const [showTemplateSuccess, setShowTemplateSuccess] = useState(false);
@@ -73,6 +74,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
     if (settings) {
       setBirthdayTemplate(settings.birthday_sms_template || '');
       setAnniversaryTemplate(settings.anniversary_sms_template || '');
+      setBaptismAnniversaryTemplate(settings.baptism_anniversary_sms_template || '');
       setAbsenteeTemplate(settings.absentee_sms_template || '');
     }
   }, [settings]);
@@ -303,6 +305,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
     const success = await updateSettings({
       birthday_sms_template: birthdayTemplate,
       anniversary_sms_template: anniversaryTemplate,
+      baptism_anniversary_sms_template: baptismAnniversaryTemplate,
       absentee_sms_template: absenteeTemplate
     });
     setIsSavingTemplates(false);
@@ -814,6 +817,58 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                       </div>
                     </div>
                   </div>
+
+                   {/* Baptism Anniversary Template Card */}
+                   <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                     <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-cyan-50 to-teal-50 border-b border-slate-200 dark:from-cyan-900/20 dark:to-teal-900/10 dark:border-slate-700">
+                       <div className="flex items-center gap-3">
+                         <div className="w-9 h-9 rounded-xl bg-cyan-100 flex items-center justify-center dark:bg-cyan-900/30 text-lg">💧</div>
+                         <div>
+                           <p className="text-sm font-bold text-slate-900 dark:text-white">Baptism Anniversary SMS</p>
+                           <p className="text-xs text-slate-500 dark:text-slate-400">Celebrate members' baptism milestones</p>
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-1.5 bg-white/80 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm backdrop-blur-sm">
+                         <Clock size={11} /> Daily · 8:20 AM
+                       </div>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-900/50">
+                       <div className="p-4">
+                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 dark:text-slate-400">Message Copy</label>
+                         <textarea
+                           value={baptismAnniversaryTemplate}
+                           onChange={(e) => setBaptismAnniversaryTemplate(e.target.value)}
+                           placeholder="Hi [FirstName], happy baptism anniversary! Celebrating [YearsSinceBaptism] years since your dedication to Christ."
+                           rows={5}
+                           className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 focus:outline-none transition-all text-sm text-slate-800 placeholder-slate-300 dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder-slate-500 resize-none leading-relaxed"
+                         />
+                         <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-slate-400">Max 160 chars per SMS part</span>
+                            <span className={`text-xs font-semibold tabular-nums ${baptismAnniversaryTemplate.length > 160 ? 'text-amber-500' : baptismAnniversaryTemplate.length > 130 ? 'text-yellow-500' : 'text-slate-400'}`}>
+                              {baptismAnniversaryTemplate.length}/160
+                            </span>
+                         </div>
+                       </div>
+                       <div className="p-4 bg-slate-50/60 dark:bg-slate-800/30">
+                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 dark:text-slate-400">Live Preview</label>
+                         <div className="flex flex-col items-start gap-1.5">
+                           <span className="text-xs text-slate-400 dark:text-slate-500">From: <strong className="text-slate-600 dark:text-slate-300">ECCLESIA</strong></span>
+                           <div className="w-full bg-white dark:bg-slate-700 rounded-2xl rounded-tl-sm px-4 py-3 shadow-md border border-slate-100 dark:border-slate-600">
+                             <p className="text-sm text-slate-800 dark:text-white leading-relaxed whitespace-pre-wrap break-words min-h-[60px]">
+                               {baptismAnniversaryTemplate
+                                 ? baptismAnniversaryTemplate
+                                     .replace(/\[FirstName\]/gi, 'Ama')
+                                     .replace(/\[LastName\]/gi, 'Darko')
+                                     .replace(/\[YearsSinceBaptism\]/gi, '5')
+                                 : <span className="text-slate-300 dark:text-slate-500 italic text-xs">Your message preview will appear here as you type...</span>
+                               }
+                             </p>
+                           </div>
+                           <span className="text-xs text-slate-300 dark:text-slate-600 italic">Preview uses sample values: Ama Darko, 5 years since baptism</span>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
 
                    {/* Absentee Template Card */}
                    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">

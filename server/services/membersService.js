@@ -197,7 +197,7 @@ const MembersService = {
     }
 
     const { start, end } = getRangeForFilter(ref, period, window);
-    const dateField = type === 'anniversary' ? 'marriage_date' : 'dob';
+    const dateField = type === 'anniversary' ? 'marriage_date' : (type === 'baptism_anniversary' ? 'baptism_date' : 'dob');
 
     const celebrations = rows
       .map((row) => {
@@ -219,7 +219,7 @@ const MembersService = {
           month: occurrenceDate.getMonth() + 1,
           type,
           milestone,
-          milestoneLabel: type === 'birthday' ? 'Turning' : 'Years Married',
+          milestoneLabel: type === 'birthday' ? 'Turning' : (type === 'baptism_anniversary' ? 'Years Since Baptism' : 'Years Married'),
           maritalStatus: row.marital_status || null,
         };
       })
@@ -308,6 +308,13 @@ const MembersService = {
   async getStats(zoneId) {
     return MembersModel.getStats(zoneId);
   },
+
+  /**
+   * Get historical active members count by age group over the last 6 months.
+   */
+  async getAgeTrends(zoneId) {
+    return MembersModel.getAgeTrends(zoneId);
+  },
 };
 
 /**
@@ -352,7 +359,12 @@ function transformMember(row) {
     baptismMethod: row.baptism_method,
     baptismChurch: row.baptism_church,
     children: row.children || [],
-    exMemberReason: row.ex_member_reason
+    exMemberReason: row.ex_member_reason,
+    landmark: row.landmark,
+    whatsapp: row.whatsapp,
+    spouseChurch: row.spouse_church,
+    homeTown: row.home_town,
+    brothersKeeper: row.brothers_keeper
   };
 }
 

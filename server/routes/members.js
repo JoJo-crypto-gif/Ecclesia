@@ -31,6 +31,9 @@ router.get('/', checkPermission('members', 'read'), MembersController.list);
 // GET /api/members/stats — dashboard statistics
 router.get('/stats', checkPermission('members', 'read'), MembersController.getStats);
 
+// GET /api/members/age-trends — member age demographics over time
+router.get('/age-trends', checkPermission('members', 'read'), MembersController.getAgeTrends);
+
 // GET /api/members/birthdays — get birthdays by month (query: ?month)
 router.get('/birthdays', checkPermission('members', 'read'), MembersController.getBirthdays);
 

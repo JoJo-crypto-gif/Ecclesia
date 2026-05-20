@@ -2,7 +2,7 @@ import React from 'react';
 import { Users, Map, Activity, TrendingUp, Calendar, ArrowRight, Shield, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, AreaChart, Area 
+  PieChart, Pie, Cell, AreaChart, Area, LineChart, Line, Legend
 } from 'recharts';
 import { useData } from '../context/DataContext';
 import StatCard from '../components/StatCard';
@@ -31,6 +31,7 @@ const Dashboard: React.FC = () => {
   // Zone Health & Demographics State
   const [zoneHealthData, setZoneHealthData] = React.useState<any[]>([]);
   const [demographicsData, setDemographicsData] = React.useState<any[]>([]);
+  const [ageTrendData, setAgeTrendData] = React.useState<any[]>([]);
 
   // Pagination for Zone Health card
   const [zoneHealthPage, setZoneHealthPage] = React.useState(1);
@@ -49,13 +50,14 @@ const Dashboard: React.FC = () => {
     }
   }, [zoneHealthData.length, totalZoneHealthPages, zoneHealthPage]);
 
-  // Fetch Zone Health & Demographics on mount
+  // Fetch Zone Health, Demographics, & Age Trends on mount
   React.useEffect(() => {
     const fetchInsights = async () => {
       try {
-        const [zhRes, demoRes] = await Promise.all([
+        const [zhRes, demoRes, ageTrendRes] = await Promise.all([
           apiFetch('/api/attendance/zone-health'),
           apiFetch('/api/attendance/demographics'),
+          apiFetch('/api/members/age-trends'),
         ]);
         if (zhRes.ok) {
           const zhData = await zhRes.json();
@@ -64,6 +66,10 @@ const Dashboard: React.FC = () => {
         if (demoRes.ok) {
           const demoData = await demoRes.json();
           if (demoData.success) setDemographicsData(demoData.data.filter((d: any) => d.ageGroup !== 'Unknown'));
+        }
+        if (ageTrendRes.ok) {
+          const ageTrendData = await ageTrendRes.json();
+          if (ageTrendData.success) setAgeTrendData(ageTrendData.data);
         }
       } catch (e) {
         console.error('Failed to fetch insights', e);
@@ -331,10 +337,109 @@ const Dashboard: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Age Demographics Trends */}
+        {ageTrendData.length > 0 && (
+          <div className="lg:col-span-2 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 animate-enter delay-500 dark:bg-slate-900 dark:border-slate-800 group md:hover-3d-card md:preserve-3d">
+            <div className="flex items-center gap-3 mb-6 transform transition-transform duration-300 md:group-hover:translate-z-4">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20">
+                <TrendingUp size={18} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Members by Age Trend</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Active church members count per age group over the last 6 months</p>
+              </div>
+            </div>
+            <div className="h-[350px] transform transition-transform duration-300 md:group-hover:translate-z-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={ageTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#1e293b' : '#f1f5f9'} />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: isDark ? '#94a3b8' : '#64748b', fontSize: 11, fontWeight: 600 }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: isDark ? '#94a3b8' : '#64748b', fontSize: 11, fontWeight: 500 }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: isDark ? '#1e293b' : '#fff',
+                      borderRadius: '12px',
+                      border: isDark ? '1px solid #334155' : 'none',
+                      boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                      padding: '12px 16px',
+                    }}
+                    labelStyle={{ color: isDark ? '#fff' : '#0f172a', fontWeight: 700, marginBottom: '6px' }}
+                  />
+                  <Legend 
+                    verticalAlign="top" 
+                    height={36} 
+                    iconType="circle"
+                    tick={{ fill: isDark ? '#94a3b8' : '#64748b', fontSize: 12 }}
+                  />
+                  <Line type="monotone" dataKey="Under 18" stroke="#f43f5e" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="18-25" stroke="#3b82f6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="26-35" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="36-45" stroke="#f59e0b" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="46-60" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="60+" stroke="#ec4899" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Grow Community Card - Design Update */}
+        <div className="lg:col-span-1 relative overflow-hidden rounded-3xl animate-enter delay-500 group md:hover-3d-card md:preserve-3d">
+            {/* Background Gradient & Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 dark:from-violet-900 dark:via-indigo-900 dark:to-purple-950 transition-colors duration-500"></div>
+            
+            {/* Decorative Elements */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl transform transition-transform duration-500 group-hover:scale-110"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500 opacity-20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl"></div>
+            
+            {/* Geometric Pattern Overlay */}
+            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
+
+            {/* Content Container */}
+            <div className="relative z-10 p-6 sm:p-8 h-full flex flex-col justify-between transform transition-transform duration-300 md:group-hover:translate-z-10">
+                <div className="flex justify-between items-start gap-4">
+                    <div className="min-w-0">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] sm:text-xs font-semibold text-white mb-4">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                            Community Growth
+                        </div>
+                        <h2 className="text-xl sm:text-3xl font-bold text-white mb-2 tracking-tight">Grow your community</h2>
+                        <p className="text-indigo-100 max-w-md text-xs sm:text-lg leading-relaxed opacity-90">
+                            Use our AI tools to organize zone meetings and track members.
+                        </p>
+                    </div>
+                    {/* Decorative Icon */}
+                    <div className="hidden sm:block p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 transform rotate-12 transition-transform duration-500 md:group-hover:rotate-6 md:group-hover:scale-110">
+                        <Users size={32} className="text-white opacity-90" />
+                    </div>
+                </div>
+
+                <div className="mt-8 flex flex-wrap gap-4">
+                    <button 
+                        onClick={() => navigate('/members')}
+                        className="w-full sm:w-auto justify-center bg-white text-indigo-700 px-6 py-3.5 rounded-xl font-bold shadow-[0_4px_14px_0_rgba(255,255,255,0.39)] hover:shadow-[0_6px_20px_rgba(255,255,255,0.23)] hover:bg-indigo-50 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                        Add New Member <ArrowRight size={18} strokeWidth={2.5} />
+                    </button>
+                </div>
+            </div>
+        </div>
       </div>
 
+
       {/* Secondary Charts / Info */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Zone Distribution Bar Chart */}
             <div className="lg:col-span-1 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-100 animate-enter delay-400 dark:bg-slate-900 dark:border-slate-800 group md:hover-3d-card md:preserve-3d">
             <h3 className="text-lg font-bold text-slate-800 mb-6 dark:text-white transform transition-transform duration-300 md:group-hover:translate-z-4">Members by Zone</h3>
@@ -424,48 +529,6 @@ const Dashboard: React.FC = () => {
                     <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Responses</div>
                 </div>
               </div>
-            </div>
-
-            {/* Grow Community Card - Design Update */}
-            <div className="lg:col-span-1 relative overflow-hidden rounded-3xl animate-enter delay-500 group md:hover-3d-card md:preserve-3d">
-                {/* Background Gradient & Pattern */}
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 dark:from-violet-900 dark:via-indigo-900 dark:to-purple-950 transition-colors duration-500"></div>
-                
-                {/* Decorative Elements */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl transform transition-transform duration-500 group-hover:scale-110"></div>
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500 opacity-20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl"></div>
-                
-                {/* Geometric Pattern Overlay */}
-                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
-
-                {/* Content Container */}
-                <div className="relative z-10 p-6 sm:p-8 h-full flex flex-col justify-between transform transition-transform duration-300 md:group-hover:translate-z-10">
-                    <div className="flex justify-between items-start gap-4">
-                        <div className="min-w-0">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[10px] sm:text-xs font-semibold text-white mb-4">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                                Community Growth
-                            </div>
-                            <h2 className="text-xl sm:text-3xl font-bold text-white mb-2 tracking-tight">Grow your community</h2>
-                            <p className="text-indigo-100 max-w-md text-xs sm:text-lg leading-relaxed opacity-90">
-                                Use our AI tools to organize zone meetings and track members.
-                            </p>
-                        </div>
-                        {/* Decorative Icon */}
-                        <div className="hidden sm:block p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 transform rotate-12 transition-transform duration-500 md:group-hover:rotate-6 md:group-hover:scale-110">
-                            <Users size={32} className="text-white opacity-90" />
-                        </div>
-                    </div>
-
-                    <div className="mt-8 flex flex-wrap gap-4">
-                        <button 
-                            onClick={() => navigate('/members')}
-                            className="w-full sm:w-auto justify-center bg-white text-indigo-700 px-6 py-3.5 rounded-xl font-bold shadow-[0_4px_14px_0_rgba(255,255,255,0.39)] hover:shadow-[0_6px_20px_rgba(255,255,255,0.23)] hover:bg-indigo-50 active:scale-95 transition-all flex items-center gap-2"
-                        >
-                            Add New Member <ArrowRight size={18} strokeWidth={2.5} />
-                        </button>
-                    </div>
-                </div>
             </div>
       </div>
 
@@ -617,6 +680,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
+
       </div>
 
 
