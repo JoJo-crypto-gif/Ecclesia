@@ -211,7 +211,7 @@ const AuditLogs: React.FC = () => {
     return mapping[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
 
-  const renderValue = (val: any): React.ReactNode => {
+  const renderValue = (val: any, fieldKey?: string): React.ReactNode => {
     if (val === null || val === undefined || val === '') {
       return <span className="text-slate-400 italic text-xs">empty</span>;
     }
@@ -222,6 +222,35 @@ const AuditLogs: React.FC = () => {
         </span>
       );
     }
+
+    // Detect encoded images (Base64 data URLs) or designated image fields
+    const isImageField = fieldKey === 'avatarUrl' || fieldKey === 'avatar_url' || fieldKey === 'church_logo';
+    const isBase64Image = typeof val === 'string' && val.startsWith('data:image/');
+    const isImageUrl = typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://')) && /\.(jpeg|jpg|gif|png|webp|svg)/i.test(val);
+
+    if (isBase64Image || isImageField || isImageUrl) {
+      return (
+        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 w-fit max-w-full shadow-xs mt-1">
+          <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 flex items-center justify-center shadow-inner">
+            <img 
+              src={val} 
+              alt="Preview" 
+              className="w-full h-full object-cover" 
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }} 
+            />
+          </div>
+          <div className="min-w-0 pr-2">
+            <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 block uppercase tracking-wider mb-0.5">Image Resource</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block truncate max-w-[180px]" title={isBase64Image ? 'Base64 Image Data' : val}>
+              {isBase64Image ? 'Base64 Encoded Image Data' : val}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     if (typeof val === 'object') {
       try {
         // Check if it's parsed occupation JSON
@@ -245,7 +274,7 @@ const AuditLogs: React.FC = () => {
       try {
         const parsed = JSON.parse(val);
         if (parsed.status) {
-          return renderValue(parsed);
+          return renderValue(parsed, fieldKey);
         }
       } catch {}
     }
@@ -606,7 +635,7 @@ const AuditLogs: React.FC = () => {
                       {(Object.entries(selectedLog.changes || {}) as [string, { old: any; new: any }][]).map(([key, delta]) => (
                         <div key={key} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl shadow-xs">
                           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{formatFieldLabel(key)}</div>
-                          <div className="text-xs text-slate-800 dark:text-slate-200">{renderValue(delta.new)}</div>
+                          <div className="text-xs text-slate-800 dark:text-slate-200">{renderValue(delta.new, key)}</div>
                         </div>
                       ))}
                     </div>
@@ -622,7 +651,7 @@ const AuditLogs: React.FC = () => {
                       {(Object.entries(selectedLog.changes || {}) as [string, { old: any; new: any }][]).map(([key, delta]) => (
                         <div key={key} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl shadow-xs">
                           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{formatFieldLabel(key)}</div>
-                          <div className="text-xs text-slate-800 dark:text-slate-200">{renderValue(delta.old)}</div>
+                          <div className="text-xs text-slate-800 dark:text-slate-200">{renderValue(delta.old, key)}</div>
                         </div>
                       ))}
                     </div>
@@ -650,7 +679,7 @@ const AuditLogs: React.FC = () => {
                               Old Value
                             </span>
                             <div className="bg-rose-500/[0.02] dark:bg-rose-500/[0.005] border border-rose-500/10 rounded-xl p-3 text-xs text-slate-600 dark:text-slate-300 font-medium">
-                              {renderValue(delta.old)}
+                              {renderValue(delta.old, key)}
                             </div>
                           </div>
                           {/* New Value */}
@@ -659,7 +688,7 @@ const AuditLogs: React.FC = () => {
                               New Value
                             </span>
                             <div className="bg-emerald-500/[0.02] dark:bg-emerald-500/[0.005] border border-emerald-500/10 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-100 font-semibold">
-                              {renderValue(delta.new)}
+                              {renderValue(delta.new, key)}
                             </div>
                           </div>
                         </div>
