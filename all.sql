@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 0uVhl8FU65VX4L8BbcYQuonPWpC4bfwmJz4sUrK317hwGs9sg3pbgJaAXKD4333
+\restrict VFc3yBrgD3odb6oj0HwsKBLlPX5YWarkfzaD9ikwtx8kTveaOgkZUb62twTDjUO
 
 -- Dumped from database version 14.20 (Homebrew)
 -- Dumped by pg_dump version 14.20 (Homebrew)
@@ -34,6 +34,28 @@ CREATE TABLE public.attendance (
     checked_in_at timestamp with time zone DEFAULT now(),
     status character varying(20) DEFAULT 'Present'::character varying,
     CONSTRAINT attendance_status_check CHECK (((status)::text = ANY ((ARRAY['Present'::character varying, 'Excused'::character varying, 'Absent'::character varying])::text[])))
+);
+
+
+--
+-- Name: audit_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.audit_logs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    actor_id uuid,
+    actor_name character varying(255),
+    actor_email character varying(255),
+    actor_role character varying(50),
+    action character varying(50) NOT NULL,
+    module character varying(50) NOT NULL,
+    record_id character varying(255),
+    record_name character varying(255),
+    description text NOT NULL,
+    changes jsonb DEFAULT '{}'::jsonb,
+    ip_address character varying(45),
+    user_agent text,
+    created_at timestamp with time zone DEFAULT now()
 );
 
 
@@ -120,6 +142,13 @@ CREATE TABLE public.members (
     other_name character varying(150),
     titles jsonb DEFAULT '[]'::jsonb NOT NULL,
     ex_member_reason text,
+    landmark character varying(255),
+    whatsapp character varying(15),
+    spouse_church character varying(255),
+    home_town character varying(255),
+    brothers_keeper character varying(255),
+    education character varying(255),
+    interest character varying(255),
     CONSTRAINT members_gender_check CHECK ((((gender)::text = ANY ((ARRAY['Male'::character varying, 'Female'::character varying, 'Other'::character varying])::text[])) OR (gender IS NULL))),
     CONSTRAINT members_status_check CHECK (((status)::text = ANY ((ARRAY['Active'::character varying, 'Inactive'::character varying, 'Visitor'::character varying, 'Ex-member'::character varying])::text[])))
 );
@@ -292,6 +321,14 @@ ALTER TABLE ONLY public.attendance
 
 
 --
+-- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_logs
+    ADD CONSTRAINT audit_logs_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: event_instances event_instances_event_id_date_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -431,6 +468,34 @@ CREATE INDEX idx_attendance_instance ON public.attendance USING btree (instance_
 --
 
 CREATE INDEX idx_attendance_member ON public.attendance USING btree (member_id);
+
+
+--
+-- Name: idx_audit_logs_action; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_action ON public.audit_logs USING btree (action);
+
+
+--
+-- Name: idx_audit_logs_actor_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_actor_id ON public.audit_logs USING btree (actor_id);
+
+
+--
+-- Name: idx_audit_logs_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_created_at ON public.audit_logs USING btree (created_at);
+
+
+--
+-- Name: idx_audit_logs_module; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_logs_module ON public.audit_logs USING btree (module);
 
 
 --
@@ -590,6 +655,14 @@ ALTER TABLE ONLY public.attendance
 
 
 --
+-- Name: audit_logs audit_logs_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_logs
+    ADD CONSTRAINT audit_logs_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: event_instances event_instances_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -657,4 +730,5 @@ ALTER TABLE ONLY public.zones
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 0uVhl8FU65VX4L8BbcYQuonPWpC4bfwmJz4sUrK317hwGs9sg3pbgJaAXKD4333
+\unrestrict VFc3yBrgD3odb6oj0HwsKBLlPX5YWarkfzaD9ikwtx8kTveaOgkZUb62twTDjUO
+
