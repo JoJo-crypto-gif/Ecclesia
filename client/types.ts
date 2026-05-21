@@ -62,6 +62,7 @@ export interface Member {
   baptismChurch?: string | null;
   brothersKeeper?: string;
   education?: string;
+  interest?: string;
 
   // Children
   children?: MemberChild[];

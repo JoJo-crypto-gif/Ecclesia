@@ -321,6 +321,7 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                 baptismChurch: isBaptized ? (formData.baptismChurch || null) : null,
                 brothersKeeper: isBaptized ? (formData.brothersKeeper || null) : null,
                 education: formData.education?.trim() || null,
+                interest: formData.interest?.trim() || null,
             };
 
             const payload = isZoneLocked && lockedZoneId
@@ -1112,13 +1113,25 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">How did you hear about us? (Optional)</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">How did you hear about us? <span className="font-normal normal-case text-slate-400">(Optional)</span></label>
                                 <CustomSelect
                                     value={formData.discoverySource || ''}
                                     onChange={val => setFormData({ ...formData, discoverySource: val })}
                                     options={DISCOVERY_SOURCE_OPTIONS}
                                     placeholder="-- Select Source --"
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Ministry / Role Interest <span className="font-normal normal-case text-slate-400">(Optional)</span></label>
+                                <input
+                                    type="text"
+                                    value={formData.interest || ''}
+                                    onChange={e => setFormData({ ...formData, interest: e.target.value })}
+                                    placeholder="e.g. Choir, Ushering, Media, Children's Ministry"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40 placeholder:text-slate-400"
+                                />
+                                <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">What role or ministry area is this member interested in serving in?</p>
                             </div>
 
                             {/* Baptism Details */}

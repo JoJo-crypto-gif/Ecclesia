@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, Printer, User, Megaphone, Briefcase, MessageSquare, BarChart3, UserCircle, Loader2, AlertCircle } from 'lucide-react';
+import {
+  Mail, Phone, Printer, User, Megaphone, Briefcase, MessageSquare,
+  BarChart3, UserCircle, Loader2, AlertCircle, MapPin, GraduationCap,
+  Heart, Users, Award, FileText, Calendar, Copy, Check
+} from 'lucide-react';
 import {
   RadialBarChart, RadialBar, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -58,386 +62,536 @@ const getRateColor = (rate: number) => {
 
 const CHART_COLORS = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#06b6d4'];
 
-// ─── Info Tab ────────────────────────────────────────────
-const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Member) => void }> = ({ member, zones, onOpenIdCard }) => (
-  <div className="p-6 space-y-8">
-    <div className="flex items-start gap-6">
-      <div className="w-28 h-28 rounded-2xl overflow-hidden border-2 border-slate-100 shadow-lg flex-shrink-0 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-        {member.avatarUrl ? (
-          <img src={member.avatarUrl} className="w-full h-full object-cover" alt="Profile" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
-            <User size={48} />
-          </div>
-        )}
-      </div>
-      <div className="flex-1 pt-1">
-        <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{getMemberDisplayName(member)}</h2>
-        <div className="flex flex-wrap gap-2 mt-3">
-          <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20">
-            {member.role || 'Member'}
-          </span>
-          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${getStatusBadgeStyles(member.status)}`}>
-            {member.status}
-          </span>
-        </div>
-        {member.status === MemberStatus.ExMember && member.exMemberReason && (
-          <div className="mt-3 bg-rose-50/50 border border-rose-100 rounded-xl px-4 py-2.5 dark:bg-rose-500/5 dark:border-rose-500/10 inline-block">
-            <span className="text-[10px] uppercase font-bold text-rose-400 block mb-0.5">Reason for leaving</span>
-            <span className="text-sm font-bold text-rose-700 dark:text-rose-400">{member.exMemberReason}</span>
-          </div>
-        )}
-        <div className="mt-5 space-y-2">
-          <div className="flex items-center gap-3 text-slate-600 dark:text-slate-400">
-            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
-              <Mail size={14} />
-            </div>
-            <span className="font-medium">{member.email}</span>
-          </div>
-          <a href={`tel:${member.phone}`} className="flex items-center gap-3 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group">
-            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 dark:bg-slate-800 dark:border-slate-700 group-hover:border-indigo-200 dark:group-hover:border-indigo-500/30 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10 transition-all">
-              <Phone size={14} />
-            </div>
-            <span className="font-medium underline-offset-4">{member.phone}</span>
-          </a>
-          {member.whatsapp && (
-            <a href={`https://wa.me/${member.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors group">
-              <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100 dark:bg-slate-800 dark:border-slate-700 group-hover:border-emerald-200 dark:group-hover:border-emerald-500/30 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10 transition-all">
-                <MessageSquare size={14} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
-              </div>
-              <span className="font-medium underline-offset-4">{member.whatsapp} (WhatsApp)</span>
-            </a>
-          )}
-        </div>
-      </div>
-    </div>
+// ─── Copy Button Helper ──────────────────────────────────
+const CopyButton: React.FC<{ value: string }> = ({ value }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy', err);
+    }
+  };
 
-    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
-      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Personal Information</h3>
-      <div className="grid grid-cols-2 gap-y-5 gap-x-4">
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Titles</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">{getMemberTitles(member) || 'Not specified'}</span>
-        </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Other Name(s)</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">{member.otherName || 'Not specified'}</span>
-        </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Gender</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">{member.gender || 'Not specified'}</span>
-        </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Hometown</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">{member.homeTown || 'Not specified'}</span>
-        </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date of Birth & Age</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">
-            {member.dob ? (
-              <>{member.dob} <span className="text-slate-400 font-normal">({calculateAge(member.dob)} years)</span></>
-            ) : 'Not specified'}
-          </span>
-        </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Highest Education</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">{member.education || 'Not specified'}</span>
-        </div>
-        <div className="col-span-2">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Full Address</span>
-          <span className="text-slate-800 font-medium dark:text-slate-200">{member.address || 'Not specified'}</span>
-          {member.landmark && (
-            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-200/50 dark:border-slate-700/50 inline-block">
-              <span className="font-bold text-slate-600 dark:text-slate-300">📍 Landmark: </span>
-              {member.landmark}
-            </div>
-          )}
-        </div>
-        {(() => {
-          const occ = parseOccupation(member.occupation);
-          return (
-            <>
-              <div>
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Employment Status</span>
-                <span className="text-slate-800 font-bold dark:text-slate-200">{occ.status}</span>
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700/60 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-all active:scale-90 focus:outline-none shrink-0"
+      title="Copy to clipboard"
+    >
+      {copied ? (
+        <Check size={11} className="text-emerald-500 dark:text-emerald-400 animate-scale-in" />
+      ) : (
+        <Copy size={11} />
+      )}
+    </button>
+  );
+};
+
+// ─── Info Tab ────────────────────────────────────────────
+const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Member) => void }> = ({ member, zones, onOpenIdCard }) => {
+  const occ = parseOccupation(member.occupation);
+
+  return (
+    <div className="p-6 space-y-6 animate-enter">
+      {/* ─── Profile Header (Hero Card) ────────────────────── */}
+      <div className="relative overflow-hidden rounded-3xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/40 p-6 shadow-sm">
+        {/* Background Radial Glow */}
+        <div className="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-gradient-to-br from-indigo-500/10 to-purple-500/0 dark:from-indigo-500/5 dark:to-transparent blur-2xl pointer-events-none" />
+        
+        <div className="relative flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
+          {/* Avatar frame */}
+          <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-slate-100 shadow-md flex-shrink-0 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
+            {member.avatarUrl ? (
+              <img src={member.avatarUrl} className="w-full h-full object-cover" alt="Profile" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600">
+                <User size={40} />
               </div>
-              {occ.status === 'Employed' && (
-                <>
-                  <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Job Title / Role</span>
-                    <span className="text-slate-800 font-bold dark:text-slate-200">{occ.role || 'Not specified'}</span>
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Workplace / Employer</span>
-                    <span className="text-slate-800 font-bold dark:text-slate-200">{occ.organization || 'Not specified'}</span>
-                  </div>
-                </>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0 pt-1">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">
+              {getMemberDisplayName(member)}
+            </h2>
+            
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-2.5">
+              <span className="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 px-2.5 py-0.5 border border-indigo-100 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                {member.role || 'Member'}
+              </span>
+              <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getStatusBadgeStyles(member.status)}`}>
+                {member.status}
+              </span>
+            </div>
+
+            {member.status === MemberStatus.ExMember && member.exMemberReason && (
+              <div className="mt-3 bg-rose-50/50 border border-rose-100 rounded-xl px-4 py-2 dark:bg-rose-500/5 dark:border-rose-500/10 block">
+                <span className="text-[9px] uppercase font-bold text-rose-400 block mb-0.5">Reason for leaving</span>
+                <span className="text-xs font-bold text-rose-700 dark:text-rose-400">{member.exMemberReason}</span>
+              </div>
+            )}
+
+            {/* Quick Action Pill Buttons */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 mt-6">
+              {member.phone && (
+                <div className="flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 text-slate-700 dark:bg-slate-800/80 dark:border-slate-700 dark:text-slate-300 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                  <a
+                    href={`tel:${member.phone}`}
+                    className="flex items-center gap-1.5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors py-0.5"
+                    title="Click to call directly"
+                  >
+                    <Phone size={12} className="text-slate-400 shrink-0" />
+                    <span className="font-mono">{member.phone}</span>
+                  </a>
+                  <div className="w-px h-3 bg-slate-200 dark:bg-slate-700 mx-0.5 shrink-0" />
+                  <CopyButton value={member.phone} />
+                </div>
               )}
-              {occ.status === 'Student' && (
-                <>
-                  <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">School Name</span>
-                    <span className="text-slate-800 font-bold dark:text-slate-200">{occ.organization || 'Not specified'}</span>
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">School Location</span>
-                    <span className="text-slate-800 font-bold dark:text-slate-200">{occ.location || 'Not specified'}</span>
-                  </div>
+              {member.email && (
+                <div className="flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 text-slate-700 dark:bg-slate-800/80 dark:border-slate-700 dark:text-slate-300 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition-colors max-w-full">
+                  <a
+                    href={`mailto:${member.email}`}
+                    className="flex items-center gap-1.5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors py-0.5 min-w-0 truncate"
+                    title="Click to send email directly"
+                  >
+                    <Mail size={12} className="text-slate-400 shrink-0" />
+                    <span className="font-sans font-medium truncate">{member.email}</span>
+                  </a>
+                  <div className="w-px h-3 bg-slate-200 dark:bg-slate-700 mx-0.5 shrink-0" />
+                  <CopyButton value={member.email} />
+                </div>
+              )}
+              {member.whatsapp && (
+                <div className="flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-lg text-xs font-bold bg-emerald-50 border border-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 shadow-xs hover:border-emerald-200 dark:hover:border-emerald-500/30 transition-colors">
+                  <a
+                    href={`https://wa.me/${member.whatsapp.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors py-0.5"
+                    title="Message on WhatsApp directly"
+                  >
+                    <MessageSquare size={12} className="text-emerald-500 shrink-0" />
+                    <span className="font-mono">{member.whatsapp}</span>
+                  </a>
+                  <div className="w-px h-3 bg-emerald-200/60 dark:bg-emerald-800/60 mx-0.5 shrink-0" />
+                  <CopyButton value={member.whatsapp} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Grid container for Card details ────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* CARD 1: Personal Biography */}
+        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 dark:bg-slate-800/40 dark:border-slate-800">
+          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 pb-2 border-b border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
+            <UserCircle size={14} className="text-indigo-500 dark:text-indigo-400" />
+            Biography
+          </h3>
+          <div className="space-y-3.5 text-sm">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Titles</span>
+              <span className="text-slate-800 dark:text-slate-200 font-semibold">{getMemberTitles(member) || <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Not specified</span>}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Other Name(s)</span>
+              <span className="text-slate-800 dark:text-slate-200 font-semibold">{member.otherName || <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Not specified</span>}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Gender</span>
+                <span className="text-slate-800 dark:text-slate-200 font-semibold">{member.gender || <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Not specified</span>}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Hometown</span>
+                <span className="text-slate-800 dark:text-slate-200 font-semibold">{member.homeTown || <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Not specified</span>}</span>
+              </div>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Date of Birth & Age</span>
+              <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                {member.dob ? (
+                  <span className="flex items-center gap-1">
+                    <Calendar size={12} className="text-slate-400" />
+                    {member.dob}
+                    <span className="text-slate-400 font-normal">({calculateAge(member.dob)} years)</span>
+                  </span>
+                ) : <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Not specified</span>}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Discovery Source</span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1.5 mt-0.5">
+                <Megaphone size={12} className="text-indigo-400" />
+                {member.discoverySource || <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Not specified</span>}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 2: Contact & Residence */}
+        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 dark:bg-slate-800/40 dark:border-slate-800">
+          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 pb-2 border-b border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
+            <MapPin size={14} className="text-rose-500 dark:text-rose-400" />
+            Contact & Residence
+          </h3>
+          <div className="space-y-4 text-sm">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Residential Address</span>
+              <span className="text-slate-800 dark:text-slate-200 font-medium block leading-relaxed">{member.address || <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Not specified</span>}</span>
+              {member.landmark && (
+                <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-200/40 dark:border-slate-700/40 inline-flex items-center gap-1.5">
+                  <span className="font-bold text-indigo-500 dark:text-indigo-400">📍 Landmark:</span>
+                  <span>{member.landmark}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Merged Emergency Contact details */}
+            <div className="pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
+              <span className="text-xs font-bold text-rose-500 dark:text-rose-400 flex items-center gap-1 mb-2.5 uppercase tracking-wide">
+                <AlertCircle size={12} /> Emergency Contact
+              </span>
+              <div className="bg-white/60 dark:bg-slate-900/30 border border-slate-200/40 dark:border-slate-700/40 rounded-xl p-3 grid grid-cols-2 gap-2 shadow-xs">
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Contact Name</span>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">{member.emergencyContact || <span className="text-slate-400 dark:text-slate-600 italic font-normal">Not specified</span>}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Contact Phone</span>
+                  {member.emergencyPhone ? (
+                    <a href={`tel:${member.emergencyPhone}`} className="text-xs font-mono font-bold text-rose-600 dark:text-rose-400 hover:underline inline-flex items-center gap-0.5">
+                      <Phone size={10} /> {member.emergencyPhone}
+                    </a>
+                  ) : (
+                    <span className="text-xs font-medium text-slate-400 dark:text-slate-600 italic">Not specified</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 3: Education & Career */}
+        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 dark:bg-slate-800/40 dark:border-slate-800">
+          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 pb-2 border-b border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
+            <GraduationCap size={14} className="text-amber-500 dark:text-amber-400" />
+            Education & Career
+          </h3>
+          <div className="space-y-4 text-sm">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Highest Education</span>
+              <span className="text-slate-800 dark:text-slate-200 font-semibold">{member.education || <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Not specified</span>}</span>
+            </div>
+            
+            <div className="pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Employment Status</span>
+              <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider inline-block mb-3 border ${
+                occ.status === 'Employed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                occ.status === 'Student' ? 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20' :
+                'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+              }`}>
+                {occ.status || 'Not specified'}
+              </span>
+
+              {occ.status === 'Employed' && (occ.role || occ.organization) && (
+                <div className="bg-white/60 dark:bg-slate-900/30 border border-slate-200/40 dark:border-slate-700/40 rounded-xl p-3 space-y-2.5 shadow-xs">
                   {occ.role && (
                     <div>
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Course of Study</span>
-                      <span className="text-slate-800 font-bold dark:text-slate-200">{occ.role}</span>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Job Title / Role</span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{occ.role}</span>
                     </div>
                   )}
-                </>
-              )}
-            </>
-          );
-        })()}
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">How they heard</span>
-          <div className="flex items-center gap-2 text-indigo-600 font-bold dark:text-indigo-400">
-            <Megaphone size={12} className="text-indigo-400" />
-            {member.discoverySource || 'Not specified'}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* Church Involvement */}
-    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
-      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Church Involvement</h3>
-      <div className="grid grid-cols-2 gap-y-5 gap-x-4">
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Assigned Zone</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">
-            {zones.find(z => z.id === member.zoneId)?.name || 'Unassigned'}
-          </span>
-        </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date Joined</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">{member.joinDate || 'Not specified'}</span>
-        </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Role / Ministry</span>
-          <span className="text-slate-800 font-bold dark:text-slate-200">{member.role || 'Member'}</span>
-        </div>
-        <div>
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Baptism Status</span>
-          <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider inline-block ${
-            member.isBaptized
-              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400'
-              : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-          }`}>
-            {member.isBaptized ? 'Baptized' : 'Not Baptized'}
-          </span>
-        </div>
-
-        {member.isBaptized && (
-          <div className="col-span-2">
-            <div className="bg-slate-100/50 p-4 rounded-xl dark:bg-slate-800/80 grid grid-cols-2 gap-y-4 gap-x-6">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Date</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.baptismDate || 'Not specified'}</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Minister</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.baptizedBy || 'Not specified'}</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Location</span>
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{member.baptismChurch || 'Not specified'}</span>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Brother's Keeper</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.brothersKeeper || 'Not assigned'}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-
-    {/* Marital & Spouse Details */}
-    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
-      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Marital Status</h3>
-      <div className="flex items-center gap-3 mb-4">
-        <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-          member.maritalStatus === 'Married' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400' :
-          member.maritalStatus === 'Single' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
-          member.maritalStatus ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' :
-          'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
-        }`}>
-          {member.maritalStatus || 'Not specified'}
-        </span>
-        {member.marriageDate && (
-          <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-            since {member.marriageDate}
-          </span>
-        )}
-      </div>
-
-      {member.maritalStatus === 'Married' && (
-        <div className="bg-slate-100/50 p-4 rounded-xl dark:bg-slate-800/80">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Spouse Name</span>
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.spouseName || 'Not specified'}</span>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Spouse Contact</span>
-              {member.spousePhone ? (
-                <a href={`tel:${member.spousePhone}`} className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 underline-offset-4">
-                  {member.spousePhone}
-                </a>
-              ) : (
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono">Not specified</span>
-              )}
-            </div>
-            {member.spouseChurch && (
-              <div className="sm:col-span-2 border-t border-slate-200/50 pt-3 dark:border-slate-700/50">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Spouse's Church</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">⛪ {member.spouseChurch}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-
-    {/* Family Details — Parents & Children */}
-    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
-      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Family Details</h3>
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="bg-slate-100/50 p-3 rounded-xl dark:bg-slate-800/80">
-          <span className="text-xs text-slate-500 block mb-0.5 dark:text-slate-400 flex items-center gap-1.5">👩 Mother</span>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-slate-900 dark:text-white">{member.motherName || 'Not specified'}</span>
-            {member.motherStatus && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                  member.motherStatus === 'Alive' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
-                  member.motherStatus === 'Deceased' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' :
-                  'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-              }`}>
-                  {member.motherStatus}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-slate-100/50 p-3 rounded-xl dark:bg-slate-800/80">
-          <span className="text-xs text-slate-500 block mb-0.5 dark:text-slate-400 flex items-center gap-1.5">👨 Father</span>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-slate-900 dark:text-white">{member.fatherName || 'Not specified'}</span>
-            {member.fatherStatus && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                  member.fatherStatus === 'Alive' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
-                  member.fatherStatus === 'Deceased' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' :
-                  'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-              }`}>
-                  {member.fatherStatus}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="pt-4 border-t border-slate-200/60 dark:border-slate-700/60">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-3 flex items-center gap-2">
-          👶 Children
-          {member.children && member.children.length > 0 && (
-            <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full dark:bg-amber-500/20 dark:text-amber-400">
-              {member.children.length}
-            </span>
-          )}
-        </span>
-        {member.children && member.children.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {member.children.map((child: MemberChild, idx: number) => (
-              <div key={idx} className="bg-slate-100/50 p-3 rounded-xl dark:bg-slate-800/80 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0">
-                  <span className="text-sm">👶</span>
+                  {occ.organization && (
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Workplace / Employer</span>
+                      <span className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                        <Briefcase size={12} className="text-slate-400 shrink-0" />
+                        {occ.organization}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white block truncate">{child.name}</span>
-                    {child.dob && (
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-200/50 dark:bg-slate-700/50 px-1.5 py-0.5 rounded">
-                        {calculateAge(child.dob)}y
+              )}
+
+              {occ.status === 'Student' && (occ.organization || occ.role || occ.location) && (
+                <div className="bg-white/60 dark:bg-slate-900/30 border border-slate-200/40 dark:border-slate-700/40 rounded-xl p-3 space-y-2.5 shadow-xs">
+                  {occ.organization && (
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">School Name</span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{occ.organization}</span>
+                    </div>
+                  )}
+                  {occ.role && (
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Course of Study</span>
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{occ.role}</span>
+                    </div>
+                  )}
+                  {occ.location && (
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">School Location</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                        <MapPin size={11} className="text-slate-400 shrink-0" />
+                        {occ.location}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {occ.status !== 'Employed' && occ.status !== 'Student' && !occ.role && !occ.organization && (
+                <span className="text-xs text-slate-400 dark:text-slate-600 italic block">No career details specified.</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 4: Church Involvement */}
+        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 dark:bg-slate-800/40 dark:border-slate-800">
+          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 pb-2 border-b border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
+            <Award size={14} className="text-indigo-500 dark:text-indigo-400" />
+            Church Involvement
+          </h3>
+          <div className="space-y-3.5 text-sm">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Assigned Zone</span>
+                <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                  {zones.find(z => z.id === member.zoneId)?.name || <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Unassigned</span>}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Date Joined</span>
+                <span className="text-slate-800 dark:text-slate-200 font-semibold">{member.joinDate || <span className="text-slate-400 dark:text-slate-600 italic text-xs font-normal">Not specified</span>}</span>
+              </div>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Role / Ministry</span>
+              <span className="text-slate-800 dark:text-slate-200 font-semibold">{member.role || 'Member'}</span>
+            </div>
+            {member.interest && (
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ministry / Role Interest</span>
+                <span className="text-indigo-600 dark:text-indigo-400 font-semibold text-xs leading-relaxed block mt-0.5">{member.interest}</span>
+              </div>
+            )}
+            
+            <div className="pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Baptism Status</span>
+              <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider inline-block mb-3 border ${
+                member.isBaptized
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20'
+                  : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+              }`}>
+                {member.isBaptized ? 'Baptized' : 'Not Baptized'}
+              </span>
+
+              {member.isBaptized && (
+                <div className="relative overflow-hidden bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-500/10 rounded-xl p-3.5 shadow-xs grid grid-cols-2 gap-y-3 gap-x-4">
+                  {/* Subtle cross/shield outline graphic */}
+                  <div className="absolute right-2 bottom-0 text-[64px] leading-none opacity-5 dark:opacity-[0.03] select-none pointer-events-none font-bold">💧</div>
+                  
+                  <div>
+                    <span className="text-[9px] font-bold text-indigo-400 uppercase block mb-0.5">Baptism Date</span>
+                    <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">{member.baptismDate || 'Not specified'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-bold text-indigo-400 uppercase block mb-0.5">Officiating Minister</span>
+                    <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">{member.baptizedBy || 'Not specified'}</span>
+                  </div>
+                  <div className="col-span-2 border-t border-indigo-100/30 dark:border-indigo-500/5 pt-2.5">
+                    <span className="text-[9px] font-bold text-indigo-400 uppercase block mb-0.5">Baptism Location / Church</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{member.baptismChurch || 'Not specified'}</span>
+                  </div>
+                  <div className="col-span-2 border-t border-indigo-100/30 dark:border-indigo-500/5 pt-2.5">
+                    <span className="text-[9px] font-bold text-indigo-400 uppercase block mb-0.5">Brother's Keeper</span>
+                    <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300">🛡️ {member.brothersKeeper || 'Not assigned'}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 5: Family & Relations */}
+        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 dark:bg-slate-800/40 dark:border-slate-800 md:col-span-2">
+          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 pb-2 border-b border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
+            <Heart size={14} className="text-indigo-500 dark:text-indigo-400" />
+            Family & Relations
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Left side: Marital details */}
+            <div className="space-y-4">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Marital Status</span>
+                <div className="flex items-center gap-3">
+                  <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${
+                    member.maritalStatus === 'Married' ? 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20' :
+                    member.maritalStatus === 'Single' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                    'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                  }`}>
+                    {member.maritalStatus || 'Not specified'}
+                  </span>
+                  {member.marriageDate && (
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <Calendar size={12} className="text-slate-400" />
+                      since {member.marriageDate}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {member.maritalStatus === 'Married' && (
+                <div className="bg-white/60 dark:bg-slate-900/30 border border-slate-200/40 dark:border-slate-700/40 rounded-xl p-3.5 shadow-xs space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Spouse Name</span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">{member.spouseName || <span className="text-slate-400 italic font-normal">Not specified</span>}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Spouse Contact</span>
+                      {member.spousePhone ? (
+                        <a href={`tel:${member.spousePhone}`} className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-0.5">
+                          <Phone size={10} /> {member.spousePhone}
+                        </a>
+                      ) : (
+                        <span className="text-xs font-medium text-slate-400 dark:text-slate-600 italic">Not specified</span>
+                      )}
+                    </div>
+                  </div>
+                  {member.spouseChurch && (
+                    <div className="border-t border-slate-200/50 pt-2.5 dark:border-slate-700/50">
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Spouse's Church</span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">⛪ {member.spouseChurch}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Parents columns */}
+              <div className="pt-2">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2.5">Parents Details</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white/60 dark:bg-slate-900/30 border border-slate-200/40 dark:border-slate-700/40 rounded-xl p-3 shadow-xs">
+                    <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 block mb-1">👩 Mother</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block truncate mb-1.5">{member.motherName || <span className="text-slate-400 italic font-normal font-medium">Not specified</span>}</span>
+                    {member.motherStatus && (
+                      <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                        member.motherStatus === 'Alive' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                        'bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
+                      }`}>
+                        {member.motherStatus}
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-col">
-                    {child.dob && (
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Born: {child.dob}
+                  <div className="bg-white/60 dark:bg-slate-900/30 border border-slate-200/40 dark:border-slate-700/40 rounded-xl p-3 shadow-xs">
+                    <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 block mb-1">👨 Father</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block truncate mb-1.5">{member.fatherName || <span className="text-slate-400 italic font-normal font-medium">Not specified</span>}</span>
+                    {member.fatherStatus && (
+                      <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                        member.fatherStatus === 'Alive' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                        'bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
+                      }`}>
+                        {member.fatherStatus}
                       </span>
-                    )}
-                    {child.phone && (
-                      <a href={`tel:${child.phone}`} className="text-xs text-indigo-600 font-mono dark:text-indigo-400 hover:underline decoration-indigo-500/30 underline-offset-2">
-                        {child.phone}
-                      </a>
                     )}
                   </div>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Right side: Children list */}
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2.5 flex items-center gap-1.5">
+                👶 Children List
+                {member.children && member.children.length > 0 && (
+                  <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full dark:bg-amber-500/20 dark:text-amber-400">
+                    {member.children.length}
+                  </span>
+                )}
+              </span>
+              
+              <div className="flex-1 bg-white/40 dark:bg-slate-900/10 border border-slate-200/50 dark:border-slate-700/50 rounded-xl p-3 min-h-[140px] flex flex-col justify-center">
+                {member.children && member.children.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2.5 max-h-[220px] overflow-y-auto pr-1">
+                    {member.children.map((child: MemberChild, idx: number) => (
+                      <div key={idx} className="bg-white dark:bg-slate-900/60 p-2.5 border border-slate-100 dark:border-slate-800 rounded-lg flex items-center gap-3 shadow-xs">
+                        <div className="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-100/30">
+                          <span className="text-xs">👶</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate block">{child.name}</span>
+                            {child.dob && (
+                              <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                {calculateAge(child.dob)}y
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                            {child.dob && <span>DOB: {child.dob}</span>}
+                            {child.dob && child.phone && <span className="text-slate-300 dark:text-slate-700">•</span>}
+                            {child.phone && (
+                              <a href={`tel:${child.phone}`} className="text-indigo-600 font-mono dark:text-indigo-400 hover:underline inline-flex items-center gap-0.5 font-semibold">
+                                <Phone size={8} /> {child.phone}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-slate-400 dark:text-slate-500 italic text-xs">
+                    No children recorded
+                  </div>
+                )}
+              </div>
+            </div>
+            
           </div>
-        ) : (
-          <span className="text-sm text-slate-400 dark:text-slate-500 italic">No children recorded</span>
-        )}
-      </div>
-    </div>
+        </div>
 
-    {/* Emergency Contact */}
-    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
-      <h3 className="text-sm font-bold text-rose-500 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:border-slate-700 flex items-center gap-2">
-        <AlertCircle size={14} /> Emergency Contact
-      </h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Contact Name</span>
-          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{member.emergencyContact || 'Not specified'}</span>
-        </div>
-        <div>
-          <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Contact Phone</span>
-          {member.emergencyPhone ? (
-            <a href={`tel:${member.emergencyPhone}`} className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono hover:text-rose-600 dark:hover:text-rose-400 transition-colors decoration-rose-500/30 underline-offset-4">
-              {member.emergencyPhone}
-            </a>
-          ) : (
-            <span className="text-sm font-medium text-slate-600 dark:text-slate-400 font-mono">Not specified</span>
-          )}
-        </div>
       </div>
-    </div>
 
-    {/* Notes */}
-    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
-      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2 dark:text-slate-200 dark:border-slate-700">Internal Notes</h3>
-      {member.notes ? (
-        <div className="bg-slate-100/50 p-4 rounded-xl text-slate-600 text-sm italic dark:bg-slate-800/80 dark:text-slate-400 flex gap-3">
-          <MessageSquare size={16} className="text-slate-400 shrink-0 mt-0.5" />
-          "{member.notes}"
+      {/* CARD 6: Internal Notes */}
+      {member.notes && (
+        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 dark:bg-slate-800/40 dark:border-slate-800">
+          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4 pb-2 border-b border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2">
+            <FileText size={14} className="text-indigo-500 dark:text-indigo-400" />
+            Internal Notes
+          </h3>
+          <div className="relative bg-white/60 dark:bg-slate-900/30 border border-slate-200/40 dark:border-slate-700/40 p-4 rounded-xl text-slate-600 text-xs leading-relaxed italic dark:bg-slate-800/80 dark:text-slate-400 flex gap-3 shadow-xs">
+            <MessageSquare size={14} className="text-slate-400 shrink-0 mt-0.5" />
+            <span>"{member.notes}"</span>
+          </div>
         </div>
-      ) : (
-        <span className="text-sm text-slate-400 dark:text-slate-500 italic">No notes</span>
       )}
+
+      {/* Generating Card Button */}
+      <div className="flex justify-end pt-2">
+        <button
+          onClick={() => onOpenIdCard(member)}
+          className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-md active:scale-[0.98] dark:bg-indigo-600 dark:hover:bg-indigo-500 text-sm"
+        >
+          <Printer size={16} />
+          Generate Member ID Card
+        </button>
+      </div>
     </div>
-
-
-
-    <div className="flex justify-end pt-2">
-      <button
-        onClick={() => onOpenIdCard(member)}
-        className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95 dark:bg-indigo-600 dark:hover:bg-indigo-500"
-      >
-        <Printer size={18} />
-        Generate Member ID Card
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 // ─── Attendance Tab ──────────────────────────────────────
 const AttendanceTab: React.FC<{ member: Member }> = ({ member }) => {
@@ -681,7 +835,7 @@ const ViewMemberModal: React.FC<ViewMemberModalProps> = ({ isOpen, onClose, memb
       isOpen={isOpen}
       onClose={onClose}
       title="Member Details"
-      maxWidth="max-w-xl"
+      maxWidth="max-w-2xl"
     >
       {member && (
         <>

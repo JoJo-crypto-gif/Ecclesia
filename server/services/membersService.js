@@ -365,7 +365,8 @@ function transformMember(row) {
     spouseChurch: row.spouse_church,
     homeTown: row.home_town,
     brothersKeeper: row.brothers_keeper,
-    education: row.education
+    education: row.education,
+    interest: row.interest
   };
 }
 

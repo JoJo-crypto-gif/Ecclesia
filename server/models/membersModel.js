@@ -103,7 +103,7 @@ const MembersModel = {
       motherName, motherStatus, fatherName, fatherStatus,
       isBaptized, baptismDate, baptizedBy, baptismMethod, baptismChurch,
       children, exMemberReason, landmark, whatsapp, spouseChurch, homeTown, brothersKeeper,
-      education
+      education, interest
     } = data;
 
     const result = await query(
@@ -115,7 +115,7 @@ const MembersModel = {
         mother_name, mother_status, father_name, father_status,
         is_baptized, baptism_date, baptized_by, baptism_method, baptism_church,
         children, ex_member_reason, landmark, whatsapp, spouse_church, home_town, brothers_keeper,
-        education
+        education, interest
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8,
         $9, $10, $11, $12, $13, $14,
@@ -123,7 +123,7 @@ const MembersModel = {
         $20, $21, $22, $23, $24, $25, $26, $27,
         $28, $29, $30, $31, $32,
         $33, $34, $35, $36, $37, $38, $39,
-        $40
+        $40, $41
       ) RETURNING *`,
       [
         firstName, lastName, otherName || null, JSON.stringify(Array.isArray(titles) ? titles : []),
@@ -136,7 +136,7 @@ const MembersModel = {
         isBaptized || false, baptismDate || null, baptizedBy || null, baptismMethod || null, baptismChurch || null,
         JSON.stringify(children || []), exMemberReason || null,
         landmark || null, whatsapp || null, spouseChurch || null, homeTown || null, brothersKeeper || null,
-        education || null
+        education || null, interest || null
       ]
     );
 
@@ -189,6 +189,7 @@ const MembersModel = {
       homeTown: 'home_town',
       brothersKeeper: 'brothers_keeper',
       education: 'education',
+      interest: 'interest',
     };
 
     const setClauses = [];
