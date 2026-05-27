@@ -7,7 +7,8 @@ import { apiFetch } from '../utils/api';
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<{ 
     success: boolean; 
-    role?: 'admin' | 'zone_leader'; 
+    role?: string;
+    mustChangePassword?: boolean;
     error?: string; 
     mfaRequired?: boolean; 
     userId?: string;
@@ -44,7 +45,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         setMfaChannel(result.channel || 'email');
         setMfaRecipient(result.recipient || '');
       } else {
-        const target = result.role === 'zone_leader' ? '/zone-dashboard' : '/';
+        const target = result.mustChangePassword ? '/change-password' : result.role === 'zone_leader' ? '/zone-dashboard' : '/';
         navigate(target);
       }
     } else {
@@ -67,7 +68,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       
       if (res.ok && data.success) {
         login(data.data);
-        const target = data.data.role === 'zone_leader' ? '/zone-dashboard' : '/';
+        const target = data.data.mustChangePassword ? '/change-password' : data.data.role === 'zone_leader' ? '/zone-dashboard' : '/';
         navigate(target);
       } else {
         setError(data.error?.message || 'Invalid code');
@@ -132,6 +133,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 hover:-translate-y-0.5 active:translate-y-0 mt-2 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:shadow-none"
             >
               {isSubmitting ? 'Signing In…' : 'Sign In to Dashboard'}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              className="w-full text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors dark:text-indigo-400 dark:hover:text-indigo-300"
+            >
+              Forgot password?
             </button>
           </form>
         ) : (

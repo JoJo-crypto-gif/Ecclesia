@@ -1,5 +1,6 @@
 import AttendanceModel from '../models/attendanceModel.js';
 import EventsService from './eventsService.js';
+import AutoStatusService from './autoStatusService.js';
 
 const transformRecord = (row) => ({
   id: row.id,
@@ -103,6 +104,14 @@ const AttendanceService = {
     }
 
     const row = await AttendanceModel.checkIn({ instanceId, memberId, visitorName, status });
+
+    // Auto-reactivate: if the checked-in member is currently Inactive, set them back to Active
+    if (memberId && member && member.status === 'Inactive') {
+      const eventName = instance.eventName || instance.event_name || '';
+      AutoStatusService.reactivateMember(memberId, { eventName }).catch(err =>
+        console.error('[AutoStatus] Error in reactivateMember:', err)
+      );
+    }
 
     return {
       ...row,

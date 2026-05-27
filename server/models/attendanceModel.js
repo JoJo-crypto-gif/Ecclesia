@@ -424,7 +424,7 @@ const AttendanceModel = {
   // ─── Demographics vs Attendance ────────────────────────
   async getDemographicAttendance({ zoneId } = {}) {
     const params = [];
-    let whereClause = "WHERE m.status = 'Active'";
+    let whereClause = "WHERE m.status IS DISTINCT FROM 'Ex-member'";
     if (zoneId) {
       params.push(zoneId);
       whereClause += " AND m.zone_id = $1";

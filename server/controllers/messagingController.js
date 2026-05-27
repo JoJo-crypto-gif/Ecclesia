@@ -1,10 +1,12 @@
 import MembersModel from '../models/membersModel.js';
 import MessagesModel from '../models/messagesModel.js';
+import EmailTemplatesModel from '../models/emailTemplatesModel.js';
 import { sendSms } from '../services/messagingService.js';
+import EmailService from '../services/emailService.js';
 
 export const sendManualMessage = async (req, res) => {
   try {
-    const { message, channel, audienceType, filters, memberId, memberIds, recipientLabel: customRecipientLabel } = req.body;
+    const { message, channel, audienceType, filters, memberId, memberIds, recipientLabel: customRecipientLabel, subject, attachments } = req.body;
     const sessionUser = req.session?.user;
     const isIsolated = sessionUser?.role !== 'admin' && sessionUser?.zoneId;
     const zoneId = sessionUser?.zoneId;
@@ -69,23 +71,43 @@ export const sendManualMessage = async (req, res) => {
       return res.status(400).json({ success: false, error: { message: 'Invalid audienceType.' } });
     }
 
-    if (channel !== 'sms') {
+    // ─── EMAIL CHANNEL ─────────────────────────────────────
+    if (channel === 'email') {
+      const emailAddresses = [...new Set(recipientMembers.map((m) => m.email).filter(Boolean))];
+
+      // Send the actual email via Nodemailer (will mock if SMTP not configured)
+      const emailResult = await EmailService.sendMail({
+        to: emailAddresses,
+        subject: subject || '(No Subject)',
+        html: message,
+        attachments: Array.isArray(attachments) ? attachments : [],
+      });
+
+      // Persist to database regardless of mock/real delivery
       await MessagesModel.create({
         content: message,
-        channel,
+        channel: 'email',
         recipientType: normalizedRecipientType,
         recipientTarget: normalizedRecipientTarget,
         recipientLabel,
-        recipientCount: recipientMembers.length,
-        status: 'sent',
+        recipientCount: emailAddresses.length,
+        status: emailResult.success ? 'sent' : 'failed',
         type: 'manual',
         senderUserId: sessionUser?.id || null,
         senderRole: sessionUser?.role || null,
         senderZoneId: sessionUser?.zoneId || null,
+        subject: subject || null,
+        attachments: Array.isArray(attachments) ? attachments : null,
       });
-      return res.json({ success: true, count: recipientMembers.length, mocked: true });
+
+      if (!emailResult.success && !emailResult.mocked) {
+        return res.status(500).json({ success: false, error: { message: emailResult.error || 'Failed to send email' } });
+      }
+
+      return res.json({ success: true, count: emailAddresses.length, mocked: emailResult.mocked || false });
     }
 
+    // ─── SMS CHANNEL ────────────────────────────────────────
     const phoneNumbers = [...new Set(recipientMembers.map((m) => m.phone).filter(Boolean))];
     if (phoneNumbers.length === 0) {
       return res.status(400).json({ success: false, error: { message: "No valid phone numbers found for the selected recipients." } });
@@ -141,6 +163,72 @@ export const getMessageHistory = async (req, res) => {
     });
   } catch (err) {
     console.error('getMessageHistory Error:', err);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
+};
+
+// ─── Email Template CRUD ────────────────────────────────
+
+export const getEmailTemplates = async (_req, res) => {
+  try {
+    const templates = await EmailTemplatesModel.findAll();
+    res.json({ success: true, data: templates });
+  } catch (err) {
+    console.error('getEmailTemplates Error:', err);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
+};
+
+export const getEmailTemplateById = async (req, res) => {
+  try {
+    const template = await EmailTemplatesModel.findById(req.params.id);
+    if (!template) {
+      return res.status(404).json({ success: false, error: { message: 'Template not found' } });
+    }
+    res.json({ success: true, data: template });
+  } catch (err) {
+    console.error('getEmailTemplateById Error:', err);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
+};
+
+export const createEmailTemplate = async (req, res) => {
+  try {
+    const { name, subject, body } = req.body;
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ success: false, error: { message: 'Template name is required.' } });
+    }
+    const template = await EmailTemplatesModel.create({ name: name.trim(), subject, body });
+    res.status(201).json({ success: true, data: template });
+  } catch (err) {
+    console.error('createEmailTemplate Error:', err);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
+};
+
+export const updateEmailTemplate = async (req, res) => {
+  try {
+    const { name, subject, body } = req.body;
+    const template = await EmailTemplatesModel.update(req.params.id, { name, subject, body });
+    if (!template) {
+      return res.status(404).json({ success: false, error: { message: 'Template not found' } });
+    }
+    res.json({ success: true, data: template });
+  } catch (err) {
+    console.error('updateEmailTemplate Error:', err);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
+};
+
+export const deleteEmailTemplate = async (req, res) => {
+  try {
+    const deleted = await EmailTemplatesModel.deleteById(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: { message: 'Template not found' } });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('deleteEmailTemplate Error:', err);
     res.status(500).json({ success: false, error: { message: err.message } });
   }
 };

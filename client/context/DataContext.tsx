@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import { Member, Zone, DashboardStats, MemberStatus, ChurchEvent, EventInstance, AttendanceRecord, Message, ManualMessagePayload } from '../types';
+import { Member, Zone, DashboardStats, MemberStatus, ChurchEvent, EventInstance, AttendanceRecord, Message, ManualMessagePayload, EmailTemplate } from '../types';
 import { apiFetch } from '../utils/api';
 import { useToast } from './ToastContext';
 
@@ -22,6 +22,7 @@ interface DataContextType {
   attendanceRecords: AttendanceRecord[];
   messages: Message[];
   settings: Record<string, string>;
+  emailTemplates: EmailTemplate[];
   
   loading: boolean;
   error: string | null;
@@ -74,6 +75,11 @@ interface DataContextType {
   fetchSettings: () => Promise<void>;
   fetchMessages: () => Promise<void>;
   updateSettings: (updates: Record<string, string>) => Promise<boolean>;
+
+  fetchEmailTemplates: () => Promise<void>;
+  addEmailTemplate: (template: Partial<EmailTemplate>) => Promise<EmailTemplate | null>;
+  updateEmailTemplate: (template: EmailTemplate) => Promise<EmailTemplate | null>;
+  deleteEmailTemplate: (id: string) => Promise<void>;
   
   theme: 'light' | 'dark';
   toggleTheme: () => void;
@@ -126,6 +132,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [attendanceTrends, setAttendanceTrends] = useState<any[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   // --- Fetch Functions ---
@@ -490,6 +497,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshData();
     fetchSettings();
     fetchMessages();
+    fetchEmailTemplates();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -656,6 +664,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Map DB snake_case → frontend camelCase Message shape
           setMessages(data.data.map((m: any) => ({
             id: m.id,
+            subject: m.subject || undefined,
             content: m.content,
             channel: m.channel,
             recipientType: m.recipient_type,
@@ -664,14 +673,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             recipientCount: m.recipient_count,
             status: m.status,
             sentAt: m.sent_at,
-            type: m.type
+            type: m.type,
+            attachments: m.attachments || undefined,
           })));
         }
       }
     } catch (err) {
       console.error('fetchMessages error:', err);
     }
-  }, []);
+  }, [hasPermission]);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -719,18 +729,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           filters: message.filters,
           memberId: message.memberId,
           memberIds: message.memberIds,
-          recipientLabel: message.recipientLabel
+          recipientLabel: message.recipientLabel,
+          subject: message.subject,
+          attachments: message.attachments,
         })
       });
       const data = await res.json();
 
-      if (!data.success && message.channel === 'sms') {
-        throw new Error(data.error?.message || "Failed to send SMS via API");
+      if (!data.success) {
+        throw new Error(data.error?.message || `Failed to send ${message.channel.toUpperCase()} via API`);
       }
 
       const newMessage: Message = {
         content: message.content,
         channel: message.channel,
+        subject: message.subject,
         recipientType: message.audienceType,
         recipientTarget: message.audienceType === 'individual'
           ? JSON.stringify(message.memberIds || (message.memberId ? [message.memberId] : []))
@@ -753,6 +766,67 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // ─── Email Templates ──────────────────────────────────
+  const fetchEmailTemplates = useCallback(async () => {
+    if (!hasPermission('messaging', 'read')) return;
+    try {
+      const res = await apiFetch(`${API_BASE}/messaging/templates`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) setEmailTemplates(data.data);
+      }
+    } catch (err) {
+      console.error('fetchEmailTemplates error:', err);
+    }
+  }, [hasPermission]);
+
+  const addEmailTemplate = async (template: Partial<EmailTemplate>): Promise<EmailTemplate | null> => {
+    try {
+      const res = await apiFetch(`${API_BASE}/messaging/templates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(template),
+      });
+      if (!res.ok) throw new Error('Failed to create template');
+      const data = await res.json();
+      await fetchEmailTemplates();
+      toastSuccess('Email template created');
+      return data.data || null;
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to create template');
+      return null;
+    }
+  };
+
+  const updateEmailTemplate = async (template: EmailTemplate): Promise<EmailTemplate | null> => {
+    try {
+      const res = await apiFetch(`${API_BASE}/messaging/templates/${template.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(template),
+      });
+      if (!res.ok) throw new Error('Failed to update template');
+      const data = await res.json();
+      await fetchEmailTemplates();
+      toastSuccess('Email template updated');
+      return data.data || null;
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to update template');
+      return null;
+    }
+  };
+
+  const deleteEmailTemplate = async (id: string) => {
+    try {
+      const res = await apiFetch(`${API_BASE}/messaging/templates/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete template');
+      await fetchEmailTemplates();
+      toastSuccess('Email template deleted');
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to delete template');
+    }
+  };
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
     document.documentElement.classList.toggle('dark');
@@ -768,6 +842,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <DataContext.Provider value={{
       members, zones, stats, events, instances, attendanceRecords, messages, attendanceTrends, settings,
+      emailTemplates,
       loading, error,
       pagination, setPage, setLimit, setSearchTerm, setStatusFilter, setZoneFilter, setBaptizedFilter, setGenderFilter, fetchMembers,
       addMember, updateMember, deleteMember, bulkUpdateMembers, bulkDeleteMembers,
@@ -776,6 +851,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       fetchInstances, fetchAllInstances, createInstance, updateInstance, generateInstances,
       checkIn, fetchAttendance, removeAttendanceRecord, removeAttendanceById,
       sendMessage, fetchAllMembers, refreshData, fetchSettings, fetchMessages, updateSettings,
+      fetchEmailTemplates, addEmailTemplate, updateEmailTemplate, deleteEmailTemplate,
       theme, toggleTheme
     }}>
       {children}

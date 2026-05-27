@@ -25,6 +25,7 @@ const Calendar: React.FC<CalendarProps> = ({ user }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [instances, setInstances] = useState<EventInstance[]>([]);
   
   const [selectedInstance, setSelectedInstance] = useState<EventInstance | null>(null);
@@ -104,37 +105,44 @@ const Calendar: React.FC<CalendarProps> = ({ user }) => {
   };
 
   const handleCreateEvent = async () => {
-    if (newEvent.name) {
-      const eventData: any = {
-        name: newEvent.name,
-        type: newEvent.type,
-        isRecurring: newEvent.isRecurring,
-      };
-      
-      if (newEvent.isRecurring) {
-        eventData.recurrenceRule = newEvent.recurrenceRule;
-        eventData.dayOfWeek = newEvent.dayOfWeek;
-      } else {
-        eventData.date = newEvent.date;
-      }
+    if (newEvent.name && !isSubmitting) {
+      setIsSubmitting(true);
+      try {
+        const eventData: any = {
+          name: newEvent.name,
+          type: newEvent.type,
+          isRecurring: newEvent.isRecurring,
+        };
+        
+        if (newEvent.isRecurring) {
+          eventData.recurrenceRule = newEvent.recurrenceRule;
+          eventData.dayOfWeek = newEvent.dayOfWeek;
+        } else {
+          eventData.date = newEvent.date;
+        }
 
-      if (user?.role === 'admin' && newEvent.zoneId) {
-        eventData.zoneId = newEvent.zoneId;
-      }
+        if (user?.role === 'admin' && newEvent.zoneId) {
+          eventData.zoneId = newEvent.zoneId;
+        }
 
-      await addEvent(eventData);
-      setIsModalOpen(false);
-      setNewEvent({ 
-        name: '', 
-        date: new Date().toISOString().split('T')[0], 
-        type: 'Service', 
-        isRecurring: false,
-        recurrenceRule: 'weekly',
-        dayOfWeek: 0,
-        zoneId: '',
-      });
-      // Refresh instances
-      setTimeout(loadInstances, 500);
+        await addEvent(eventData);
+        setIsModalOpen(false);
+        setNewEvent({ 
+          name: '', 
+          date: new Date().toISOString().split('T')[0], 
+          type: 'Service', 
+          isRecurring: false,
+          recurrenceRule: 'weekly',
+          dayOfWeek: 0,
+          zoneId: '',
+        });
+        // Refresh instances
+        setTimeout(loadInstances, 500);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -583,12 +591,20 @@ const Calendar: React.FC<CalendarProps> = ({ user }) => {
                >
                  Cancel
                </button>
-               <button 
-                 onClick={handleCreateEvent}
-                 className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-               >
-                 Add to Calendar
-               </button>
+                <button 
+                  onClick={handleCreateEvent}
+                  disabled={isSubmitting || !newEvent.name}
+                  className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 dark:bg-indigo-500 dark:hover:bg-indigo-600 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      <span>Adding...</span>
+                    </>
+                  ) : (
+                    'Add to Calendar'
+                  )}
+                </button>
            </div>
         </div>
       </Modal>

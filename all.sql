@@ -270,7 +270,11 @@ CREATE TABLE public.users (
     role_id uuid,
     mfa_enabled boolean DEFAULT false,
     mfa_code character varying(10),
-    mfa_code_expires_at timestamp with time zone
+    mfa_code_expires_at timestamp with time zone,
+    temporary_password_hash text,
+    temporary_password_expires_at timestamp with time zone,
+    password_reset_requested_at timestamp with time zone,
+    must_change_password boolean DEFAULT false NOT NULL
 );
 
 
@@ -611,6 +615,13 @@ CREATE INDEX idx_users_member_id ON public.users USING btree (member_id);
 
 
 --
+-- Name: idx_users_password_reset_requested_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_users_password_reset_requested_at ON public.users USING btree (password_reset_requested_at) WHERE (password_reset_requested_at IS NOT NULL);
+
+
+--
 -- Name: idx_users_role; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -731,4 +742,3 @@ ALTER TABLE ONLY public.zones
 --
 
 \unrestrict VFc3yBrgD3odb6oj0HwsKBLlPX5YWarkfzaD9ikwtx8kTveaOgkZUb62twTDjUO
-

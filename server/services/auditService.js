@@ -137,7 +137,7 @@ const AuditService = {
   /**
    * Helper utility to compare two objects and compute changes.
    */
-  computeChanges(oldObj, newObj, ignoredFields = ['updated_at', 'created_at', 'password_hash', 'mfa_code', 'mfa_code_expires_at']) {
+  computeChanges(oldObj, newObj, ignoredFields = ['updated_at', 'created_at', 'password_hash', 'mfa_code', 'mfa_code_expires_at', 'temporary_password_hash']) {
     const changes = {};
     if (!oldObj || !newObj) return changes;
 

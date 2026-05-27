@@ -9,12 +9,15 @@ import settingsRoutes from './settings.js';
 import messagingRoutes from './messaging.js';
 import rolesRoutes from './roles.js';
 import auditRoutes from './audit.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth, requireRole, requireCompletedPasswordReset } from '../middleware/auth.js';
 
 const router = Router();
 
 // Auth routes
 router.use('/auth', authRoutes);
+
+// Temporary-password sessions may only use auth reset/logout/me endpoints.
+router.use(requireCompletedPasswordReset);
 
 // User management (admin only inside router)
 router.use('/users', requireAuth, usersRoutes);

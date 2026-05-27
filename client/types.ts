@@ -105,6 +105,8 @@ export interface User {
   permissions?: Record<string, PermissionSet>;
   memberId?: string;
   zoneId?: string;
+  mfaEnabled?: boolean;
+  mustChangePassword?: boolean;
 }
 
 export interface ChurchEvent {
@@ -170,6 +172,7 @@ export interface Message {
   sentAt: string;
   status: 'sent' | 'scheduled' | 'failed';
   recipientCount: number;
+  attachments?: { filename: string; contentType: string; size?: number }[];
 }
 
 export interface ManualMessagePayload {
@@ -186,4 +189,14 @@ export interface ManualMessagePayload {
   memberIds?: string[];
   recipientLabel: string;
   recipientCount: number;
+  attachments?: { filename: string; content: string; contentType: string; size?: number }[];
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  created_at?: string;
+  updated_at?: string;
 }

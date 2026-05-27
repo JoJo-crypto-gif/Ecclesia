@@ -18,14 +18,21 @@ const MessagesModel = {
     senderUserId = null,
     senderRole = null,
     senderZoneId = null,
+    subject = null,
+    attachments = null,
   }) {
+    // attachments should be stored as JSONB (array of { filename, contentType, size })
+    const attachmentsMeta = attachments && attachments.length > 0
+      ? JSON.stringify(attachments.map(a => ({ filename: a.filename, contentType: a.contentType, size: a.size })))
+      : null;
+
     try {
       const result = await query(
         `INSERT INTO messages (
            content, channel, recipient_type, recipient_target, recipient_label, recipient_count, status, type,
-           sender_user_id, sender_role, sender_zone_id
+           sender_user_id, sender_role, sender_zone_id, subject, attachments
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING *`,
         [
           content,
@@ -38,7 +45,9 @@ const MessagesModel = {
           type,
           senderUserId,
           senderRole,
-          senderZoneId
+          senderZoneId,
+          subject || null,
+          attachmentsMeta
         ]
       );
       return result.rows[0];

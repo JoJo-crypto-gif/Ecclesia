@@ -347,7 +347,7 @@ const Dashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white">Members by Age Trend</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Active church members count per age group over the last 6 months</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Church members count per age group over the last 6 months</p>
               </div>
             </div>
             <div className="h-[350px] transform transition-transform duration-300 md:group-hover:translate-z-2">

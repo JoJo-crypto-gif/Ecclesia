@@ -1,4 +1,6 @@
 import EventsService from '../services/eventsService.js';
+import AutoStatusService from '../services/autoStatusService.js';
+import EventsModel from '../models/eventsModel.js';
 
 const EventsController = {
   // GET /api/events
@@ -195,6 +197,17 @@ const EventsController = {
       }
       const instance = await EventsService.updateInstance(req.params.instanceId, req.body);
       if (!instance) return res.status(404).json({ success: false, error: { message: 'Instance not found' } });
+
+      // If instance was manually completed, check for auto-inactive (global Service only)
+      if (req.body.status === 'completed') {
+        const event = await EventsModel.findEventByInstanceId(req.params.instanceId);
+        if (event && event.zone_id === null && String(event.type).toLowerCase() === 'service') {
+          AutoStatusService.checkAutoInactive().catch(err =>
+            console.error('[AutoStatus] Error in post-completion check:', err)
+          );
+        }
+      }
+
       res.json({ success: true, data: instance });
     } catch (err) {
       next(err);

@@ -10,6 +10,8 @@ import CheckIn from './pages/CheckIn';
 import Calendar from './pages/Calendar';
 import Celebrations from './pages/Celebrations';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ChangeTemporaryPassword from './pages/ChangeTemporaryPassword';
 import KioskMode from './pages/KioskMode';
 import { DataProvider, useData } from './context/DataContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -52,6 +54,7 @@ const ProtectedLayout: React.FC<ProtectedLayoutProps & { isMobileMenuOpen: boole
     );
   }
   if (!user) return <Navigate to="/login" replace />;
+  if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
   if (module && !hasPermission(module, action)) {
     return <Navigate to={hasPermission('dashboard', 'read') ? '/' : '/login'} replace />;
   }
@@ -87,7 +90,7 @@ const AppInner: React.FC = () => {
   const { user, authLoading, login, logout } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { refreshData, fetchMembers, fetchMessages, fetchSettings } = useData();
+  const { refreshData, fetchMembers, fetchMessages, fetchSettings, fetchEmailTemplates } = useData();
   const location = useLocation();
 
   // Close mobile menu on navigate
@@ -118,7 +121,7 @@ const AppInner: React.FC = () => {
       }
 
       login(data.data);
-      return { success: true, role: data.data.role };
+      return { success: true, role: data.data.role, mustChangePassword: data.data.mustChangePassword };
     } catch {
       return { success: false, error: 'Login failed' };
     }
@@ -136,25 +139,35 @@ const AppInner: React.FC = () => {
   const toggleSidebar = () => setIsSidebarCollapsed(prev => !prev);
 
   useEffect(() => {
-    if (user) {
+    if (user && !user.mustChangePassword) {
       // Session restored or login happened — re-fetch all data now that we're authenticated
-      Promise.all([refreshData(), fetchMembers(), fetchMessages(), fetchSettings()]).catch(console.error);
+      Promise.all([
+        refreshData(),
+        fetchMembers(),
+        fetchMessages(),
+        fetchSettings(),
+        fetchEmailTemplates()
+      ]).catch(console.error);
     }
-  }, [user, refreshData, fetchMembers, fetchMessages, fetchSettings]);
+  }, [user, refreshData, fetchMembers, fetchMessages, fetchSettings, fetchEmailTemplates]);
 
 
   return (
     <Routes>
         <Route path="/login" element={
-          user ? <Navigate to={user.role === 'zone_leader' ? '/zone-dashboard' : '/'} replace /> : <Login onLogin={handleLogin} />
+          user ? <Navigate to={user.mustChangePassword ? '/change-password' : user.role === 'zone_leader' ? '/zone-dashboard' : '/'} replace /> : <Login onLogin={handleLogin} />
         } />
+        <Route path="/forgot-password" element={
+          user ? <Navigate to={user.mustChangePassword ? '/change-password' : user.role === 'zone_leader' ? '/zone-dashboard' : '/'} replace /> : <ForgotPassword />
+        } />
+        <Route path="/change-password" element={<ChangeTemporaryPassword />} />
         
         {/* Public Route for QR Check-in (Self-service via phone) */}
         <Route path="/check-in/:instanceId" element={<CheckIn />} />
 
         {/* Kiosk Mode (Ideally semi-protected, but separate route for full screen) */}
         <Route path="/kiosk/:instanceId" element={
-          user ? <KioskMode /> : <Navigate to="/login" replace />
+          user ? (user.mustChangePassword ? <Navigate to="/change-password" replace /> : <KioskMode />) : <Navigate to="/login" replace />
         } />
 
         {/* Protected Routes */}

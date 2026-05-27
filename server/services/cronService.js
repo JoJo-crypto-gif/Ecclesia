@@ -3,6 +3,7 @@ import { query } from '../config/db.js';
 import SettingsModel from '../models/settingsModel.js';
 import MessagesModel from '../models/messagesModel.js';
 import EventsService from './eventsService.js';
+import AutoStatusService from './autoStatusService.js';
 import { sendSms } from './messagingService.js';
 
 const parseBoolean = (value, defaultValue = false) => {
@@ -27,7 +28,7 @@ const isAutomationEnabled = async (typeSettingKey, typeEnvKey) => {
 /**
  * Replace placeholders like [FirstName] with actual values
  */
-const formatMessage = (template, member) => {
+const formatMessage = (template, member, context = {}) => {
   if (!template) return '';
   const getYearsSince = (dateValue) => {
     if (!dateValue) return '';
@@ -48,7 +49,91 @@ const formatMessage = (template, member) => {
   msg = msg.replace(/\[LastName\]/gi, member.last_name || '');
   msg = msg.replace(/\[YearsMarried\]/gi, getYearsSince(member.marriage_date));
   msg = msg.replace(/\[YearsSinceBaptism\]/gi, getYearsSince(member.baptism_date));
+  msg = msg.replace(/\[EventName\]/gi, context.eventName || '');
+  msg = msg.replace(/\[ServiceName\]/gi, context.eventName || '');
   return msg;
+};
+
+const ensureEventNameInTemplate = (template) => {
+  if (/\[(EventName|ServiceName)\]/i.test(template)) return template;
+  return `${template.trim()} Service: [EventName]`;
+};
+
+const stringifySendError = (result) => {
+  if (!result) return null;
+  if (typeof result.error === 'string') return result.error;
+  if (result.error?.message) return result.error.message;
+  if (result.success === false) return 'SMS provider rejected the message';
+  return null;
+};
+
+const claimAutomatedSms = async ({ automationType, memberId, eventInstanceId = null }) => {
+  const result = await query(
+    `INSERT INTO automated_message_log (
+       automation_type, member_id, event_instance_id, channel, status
+     )
+     VALUES ($1, $2, $3, 'sms', 'pending')
+     ON CONFLICT DO NOTHING
+     RETURNING id`,
+    [automationType, memberId, eventInstanceId]
+  );
+
+  return result.rows[0] || null;
+};
+
+const completeAutomatedSms = async (logId, result, message) => {
+  await query(
+    `UPDATE automated_message_log
+     SET status = $2,
+         provider = $3,
+         message_content = $4,
+         error = $5,
+         updated_at = NOW()
+     WHERE id = $1`,
+    [
+      logId,
+      result.success ? 'sent' : 'failed',
+      result.provider || null,
+      message,
+      stringifySendError(result)
+    ]
+  );
+};
+
+const sendAutomatedSmsToMembers = async ({
+  automationType,
+  template,
+  members,
+  eventInstanceId = null,
+  context = {}
+}) => {
+  let sentCount = 0;
+  let skippedCount = 0;
+
+  for (const member of members) {
+    const claim = await claimAutomatedSms({
+      automationType,
+      memberId: member.id,
+      eventInstanceId
+    });
+
+    if (!claim) {
+      skippedCount++;
+      continue;
+    }
+
+    const msg = formatMessage(template, member, context);
+    const result = await sendSms(msg, [member.phone]);
+    await completeAutomatedSms(claim.id, result, msg);
+
+    if (result.success) sentCount++;
+  }
+
+  if (skippedCount > 0) {
+    console.log(`[Cron] Skipped ${skippedCount} duplicate ${automationType} SMS recipient(s).`);
+  }
+
+  return sentCount;
 };
 
 const sendBirthdaySMS = async () => {
@@ -79,12 +164,11 @@ const sendBirthdaySMS = async () => {
     }
 
     console.log(`[Cron] Found ${members.length} birthdays today. Dispatching SMS...`);
-    let sentCount = 0;
-    for (const member of members) {
-      const msg = formatMessage(template, member);
-      const result = await sendSms(msg, [member.phone]);
-      if (result.success) sentCount++;
-    }
+    const sentCount = await sendAutomatedSmsToMembers({
+      automationType: 'birthday',
+      template,
+      members
+    });
 
     // Save to message history
     if (sentCount > 0) {
@@ -109,45 +193,60 @@ const sendAbsenteeSMS = async () => {
   console.log('[Cron] Running Absentee SMS check for today...');
 
   try {
-    const template = await SettingsModel.getSetting('absentee_sms_template');
-    if (!template) {
+    const configuredTemplate = await SettingsModel.getSetting('absentee_sms_template');
+    if (!configuredTemplate) {
       console.log('[Cron] No absentee sms template found. Skipping.');
       return;
     }
+    const template = ensureEventNameInTemplate(configuredTemplate);
 
-    // 1. Find all event instances that happened today (usually Sunday service)
+    // Find today's non-cancelled service instances only.
     const instancesResult = await query(`
-      SELECT id, event_id FROM event_instances 
-      WHERE date = CURRENT_DATE
+      SELECT
+        ei.id,
+        ei.event_id,
+        ei.date,
+        e.zone_id,
+        COALESCE(NULLIF(ei.name_override, ''), e.name) AS event_name,
+        COALESCE(NULLIF(ei.type_override, ''), e.type) AS event_type
+      FROM event_instances ei
+      JOIN events e ON e.id = ei.event_id
+      WHERE ei.date = CURRENT_DATE
+        AND ei.status <> 'cancelled'
+        AND LOWER(COALESCE(NULLIF(ei.type_override, ''), e.type)) = 'service'
     `);
 
     if (instancesResult.rows.length === 0) {
-      console.log('[Cron] No event instances recorded for today. Skipping absentee SMS.');
+      console.log('[Cron] No service instances recorded for today. Skipping absentee SMS.');
       return;
     }
 
-    // Usually there's just one main service, but to be safe we pick the first one or loop
     for (const instance of instancesResult.rows) {
-      // Find active members who did NOT check in to this instance
+      // Find active members in this service scope who missed this service.
       const absenteesResult = await query(`
         SELECT m.id, m.first_name, m.last_name, m.phone 
         FROM members m
         WHERE m.status = 'Active' 
           AND m.phone IS NOT NULL
-          AND m.id NOT IN (
-            SELECT member_id FROM attendance WHERE instance_id = $1 AND member_id IS NOT NULL
+          AND ($2::uuid IS NULL OR m.zone_id = $2)
+          AND NOT EXISTS (
+            SELECT 1
+            FROM attendance a
+            WHERE a.instance_id = $1
+              AND a.member_id = m.id
           )
-      `, [instance.id]);
+      `, [instance.id, instance.zone_id]);
 
       const absentees = absenteesResult.rows;
       if (absentees.length > 0) {
-        console.log(`[Cron] Found ${absentees.length} absentees for instance ${instance.id}. Dispatching SMS...`);
-        let sentCount = 0;
-        for (const member of absentees) {
-           const msg = formatMessage(template, member);
-           const result = await sendSms(msg, [member.phone]);
-           if (result.success) sentCount++;
-        }
+        console.log(`[Cron] Found ${absentees.length} absentees for ${instance.event_name}. Dispatching SMS...`);
+        const sentCount = await sendAutomatedSmsToMembers({
+          automationType: 'absentee',
+          template,
+          members: absentees,
+          eventInstanceId: instance.id,
+          context: { eventName: instance.event_name }
+        });
 
         // Save to message history
         if (sentCount > 0) {
@@ -155,7 +254,8 @@ const sendAbsenteeSMS = async () => {
             content: template,
             channel: 'sms',
             recipientType: 'absentee',
-            recipientLabel: 'Absentee Members',
+            recipientTarget: instance.id,
+            recipientLabel: `${instance.event_name} Absentees`,
             recipientCount: sentCount,
             status: 'sent',
             type: 'automated'
@@ -198,12 +298,11 @@ const sendAnniversarySMS = async () => {
     }
 
     console.log(`[Cron] Found ${members.length} wedding anniversaries today. Dispatching SMS...`);
-    let sentCount = 0;
-    for (const member of members) {
-      const msg = formatMessage(template, member);
-      const result = await sendSms(msg, [member.phone]);
-      if (result.success) sentCount++;
-    }
+    const sentCount = await sendAutomatedSmsToMembers({
+      automationType: 'anniversary',
+      template,
+      members
+    });
 
     if (sentCount > 0) {
       await MessagesModel.create({
@@ -252,12 +351,11 @@ const sendBaptismAnniversarySMS = async () => {
     }
 
     console.log(`[Cron] Found ${members.length} baptism anniversaries today. Dispatching SMS...`);
-    let sentCount = 0;
-    for (const member of members) {
-      const msg = formatMessage(template, member);
-      const result = await sendSms(msg, [member.phone]);
-      if (result.success) sentCount++;
-    }
+    const sentCount = await sendAutomatedSmsToMembers({
+      automationType: 'baptism_anniversary',
+      template,
+      members
+    });
 
     if (sentCount > 0) {
       await MessagesModel.create({
@@ -282,6 +380,8 @@ const syncPastEventInstances = async () => {
     const updatedCount = await EventsService.syncPastInstances();
     if (updatedCount > 0) {
       console.log(`[Cron] Marked ${updatedCount} past event instance(s) as completed.`);
+      // After completing instances, check if any members should be auto-deactivated
+      await AutoStatusService.checkAutoInactive();
     }
   } catch (error) {
     console.error('[Cron] Error in syncPastEventInstances:', error);

@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import UsersModel from '../models/usersModel.js';
 import SettingsModel from '../models/settingsModel.js';
 import EmailService from '../services/emailService.js';
@@ -7,10 +8,67 @@ import { sendSms } from '../services/messagingService.js';
 import AuditService from '../services/auditService.js';
 
 const SALT_ROUNDS = 10;
+const TEMP_PASSWORD_EXPIRES_MINUTES = 30;
+const TEMP_PASSWORD_EXPIRES_MS = TEMP_PASSWORD_EXPIRES_MINUTES * 60 * 1000;
+const FORGOT_PASSWORD_RESPONSE = 'If an account exists, we sent reset instructions.';
 const isProduction = process.env.NODE_ENV === 'production';
 const sessionCookieSameSite = (process.env.SESSION_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')).toLowerCase();
 
 const AuthController = {
+  async forgotPassword(req, res, next) {
+    try {
+      const normalizedEmail = typeof req.body?.email === 'string'
+        ? req.body.email.trim().toLowerCase()
+        : '';
+
+      if (normalizedEmail && normalizedEmail.includes('@')) {
+        const user = await UsersModel.findByEmail(normalizedEmail);
+
+        if (user) {
+          const temporaryPassword = generateTemporaryPassword();
+          const temporaryPasswordHash = await bcrypt.hash(temporaryPassword, SALT_ROUNDS);
+          const expiresAt = new Date(Date.now() + TEMP_PASSWORD_EXPIRES_MS).toISOString();
+
+          await UsersModel.update(user.id, {
+            temporaryPasswordHash,
+            temporaryPasswordExpiresAt: expiresAt,
+            passwordResetRequestedAt: new Date().toISOString(),
+            mustChangePassword: true,
+          });
+
+          const sent = await EmailService.sendPasswordReset(
+            user.email,
+            temporaryPassword,
+            TEMP_PASSWORD_EXPIRES_MINUTES
+          );
+
+          if (sent) {
+            AuditService.log({
+              req,
+              user: null,
+              action: 'UPDATE',
+              module: 'auth',
+              recordId: user.id,
+              recordName: user.name || user.email,
+              description: `Password reset requested for ${user.name || user.email}`,
+            });
+          } else {
+            await UsersModel.update(user.id, {
+              temporaryPasswordHash: null,
+              temporaryPasswordExpiresAt: null,
+              passwordResetRequestedAt: null,
+              mustChangePassword: false,
+            });
+          }
+        }
+      }
+
+      return res.json({ success: true, message: FORGOT_PASSWORD_RESPONSE });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
@@ -21,7 +79,7 @@ const AuthController = {
         });
       }
 
-      const user = await UsersModel.findByEmail(email.toLowerCase());
+      let user = await UsersModel.findByEmail(email.toLowerCase());
       if (!user) {
         return res.status(401).json({
           success: false,
@@ -29,11 +87,46 @@ const AuthController = {
         });
       }
 
-      const ok = await bcrypt.compare(password, user.password_hash);
-      if (!ok) {
+      const normalPasswordOk = await bcrypt.compare(password, user.password_hash);
+      let temporaryPasswordOk = false;
+
+      if (!normalPasswordOk && user.must_change_password && user.temporary_password_hash) {
+        const expiresAt = user.temporary_password_expires_at
+          ? new Date(user.temporary_password_expires_at)
+          : null;
+
+        if (!expiresAt || expiresAt <= new Date()) {
+          return res.status(401).json({
+            success: false,
+            error: { message: 'Invalid email or password' },
+          });
+        }
+
+        temporaryPasswordOk = await bcrypt.compare(password, user.temporary_password_hash);
+      }
+
+      if (!normalPasswordOk && !temporaryPasswordOk) {
         return res.status(401).json({
           success: false,
           error: { message: 'Invalid email or password' },
+        });
+      }
+
+      if (normalPasswordOk && (user.must_change_password || user.temporary_password_hash)) {
+        await UsersModel.update(user.id, {
+          temporaryPasswordHash: null,
+          temporaryPasswordExpiresAt: null,
+          passwordResetRequestedAt: null,
+          mustChangePassword: false,
+        });
+        user = await UsersModel.findById(user.id);
+      }
+
+      if (temporaryPasswordOk) {
+        const safeUser = toSafeUser({ ...user, must_change_password: true });
+        return createSession(req, res, next, safeUser, {
+          action: 'LOGIN',
+          description: `User ${safeUser.name || safeUser.email} logged in with a temporary password`,
         });
       }
 
@@ -105,35 +198,9 @@ const AuthController = {
         });
       }
 
-      const safeUser = toSafeUser(user);
-      if (!req.session) {
-        return res.status(500).json({
-          success: false,
-          error: { message: 'Session is not available' },
-        });
-      }
-
-      req.session.regenerate((regenErr) => {
-        if (regenErr) {
-          return next(regenErr);
-        }
-
-        req.session.user = safeUser;
-        req.session.save((saveErr) => {
-          if (saveErr) {
-            return next(saveErr);
-          }
-          AuditService.log({
-            req,
-            user: safeUser,
-            action: 'LOGIN',
-            module: 'auth',
-            recordId: safeUser.id,
-            recordName: safeUser.name || safeUser.email,
-            description: `User ${safeUser.name || safeUser.email} logged in`,
-          });
-          return res.json({ success: true, data: safeUser });
-        });
+      return createSession(req, res, next, toSafeUser(user), {
+        action: 'LOGIN',
+        description: `User ${user.name || user.email} logged in`,
       });
     } catch (err) {
       next(err);
@@ -163,28 +230,71 @@ const AuthController = {
       // Clear the code
       await UsersModel.update(user.id, { mfaCode: null, mfaCodeExpiresAt: null });
 
-      const safeUser = toSafeUser(user);
-      if (!req.session) {
-        return res.status(500).json({ success: false, error: { message: 'Session is not available' } });
+      return createSession(req, res, next, toSafeUser(user), {
+        action: 'LOGIN',
+        description: `User ${user.name || user.email} logged in via MFA`,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async completePasswordReset(req, res, next) {
+    try {
+      const sessionUser = req.session?.user;
+      if (!sessionUser) {
+        return res.status(401).json({ success: false, error: { message: 'Authentication required' } });
+      }
+      if (!sessionUser.mustChangePassword) {
+        return res.status(403).json({ success: false, error: { message: 'Password reset is not required for this session' } });
       }
 
-      req.session.regenerate((regenErr) => {
-        if (regenErr) return next(regenErr);
+      const { newPassword } = req.body;
+      if (!newPassword || typeof newPassword !== 'string') {
+        return res.status(400).json({ success: false, error: { message: 'newPassword is required' } });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ success: false, error: { message: 'New password must be at least 8 characters' } });
+      }
 
-        req.session.user = safeUser;
-        req.session.save((saveErr) => {
-          if (saveErr) return next(saveErr);
-          AuditService.log({
-            req,
-            user: safeUser,
-            action: 'LOGIN',
-            module: 'auth',
-            recordId: safeUser.id,
-            recordName: safeUser.name || safeUser.email,
-            description: `User ${safeUser.name || safeUser.email} logged in via MFA`,
-          });
-          return res.json({ success: true, data: safeUser });
+      const user = await UsersModel.findById(sessionUser.id);
+      if (!user || !user.must_change_password || !user.temporary_password_hash) {
+        return res.status(400).json({ success: false, error: { message: 'Password reset is no longer available' } });
+      }
+
+      const sameAsTemporaryPassword = await bcrypt.compare(newPassword, user.temporary_password_hash);
+      if (sameAsTemporaryPassword) {
+        return res.status(400).json({ success: false, error: { message: 'New password must be different from the temporary password' } });
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      await UsersModel.update(user.id, {
+        passwordHash,
+        temporaryPasswordHash: null,
+        temporaryPasswordExpiresAt: null,
+        passwordResetRequestedAt: null,
+        mustChangePassword: false,
+        mfaCode: null,
+        mfaCodeExpiresAt: null,
+      });
+
+      AuditService.log({
+        req,
+        user: sessionUser,
+        action: 'UPDATE',
+        module: 'auth',
+        recordId: user.id,
+        recordName: user.name || user.email,
+        description: `User ${user.name || user.email} completed password reset`,
+      });
+
+      req.session.destroy(() => {
+        res.clearCookie('ecclesia.sid', {
+          httpOnly: true,
+          sameSite: sessionCookieSameSite,
+          secure: isProduction,
         });
+        return res.json({ success: true, message: 'Password updated. Please sign in with your new password.' });
       });
     } catch (err) {
       next(err);
@@ -233,6 +343,38 @@ const AuthController = {
   },
 };
 
+function createSession(req, res, next, safeUser, { action, description }) {
+  if (!req.session) {
+    return res.status(500).json({
+      success: false,
+      error: { message: 'Session is not available' },
+    });
+  }
+
+  return req.session.regenerate((regenErr) => {
+    if (regenErr) {
+      return next(regenErr);
+    }
+
+    req.session.user = safeUser;
+    return req.session.save((saveErr) => {
+      if (saveErr) {
+        return next(saveErr);
+      }
+      AuditService.log({
+        req,
+        user: safeUser,
+        action,
+        module: 'auth',
+        recordId: safeUser.id,
+        recordName: safeUser.name || safeUser.email,
+        description,
+      });
+      return res.json({ success: true, data: safeUser });
+    });
+  });
+}
+
 function toSafeUser(user) {
   return {
     id: user.id,
@@ -244,7 +386,12 @@ function toSafeUser(user) {
     memberId: user.member_id,
     zoneId: user.zone_id,
     mfaEnabled: user.mfa_enabled,
+    mustChangePassword: Boolean(user.must_change_password),
   };
+}
+
+function generateTemporaryPassword() {
+  return crypto.randomBytes(12).toString('base64url');
 }
 
 function maskEmail(email) {

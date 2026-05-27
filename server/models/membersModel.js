@@ -386,7 +386,7 @@ const MembersModel = {
   },
 
   /**
-   * Get historical active members count by age group over the last 6 months.
+   * Get historical non-ex-member count by age group over the last 6 months.
    */
   async getAgeTrends(zoneId) {
     const params = [];
@@ -419,7 +419,7 @@ const MembersModel = {
             WHEN EXTRACT(YEAR FROM AGE(ms.month_date, m.dob)) > 60 THEN '60+'
           END AS age_group
         FROM month_series ms
-        LEFT JOIN members m ON m.status = 'Active'
+        LEFT JOIN members m ON m.status IS DISTINCT FROM 'Ex-member'
           AND m.join_date <= (ms.month_date + INTERVAL '1 month' - INTERVAL '1 day')::date
           ${zoneFilter}
       )

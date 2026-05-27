@@ -23,6 +23,7 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
   const { error: toastError } = useToast();
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<ChurchEvent | null>(null);
   const [selectedInstance, setSelectedInstance] = useState<EventInstance | null>(null);
   const [allInstancesMap, setAllInstancesMap] = useState<Record<string, EventInstance[]>>({});
@@ -114,35 +115,42 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
   }, [allInstancesMap, selectedInstanceIdMap]);
 
   const handleCreateEvent = async () => {
-    if (newEvent.name) {
-      const eventData: any = {
-        name: newEvent.name,
-        type: newEvent.type,
-        location: newEvent.location || undefined,
-        startTime: newEvent.startTime || undefined,
-        isRecurring: newEvent.isRecurring,
-      };
-      
-      if (newEvent.isRecurring) {
-        eventData.recurrenceRule = newEvent.recurrenceRule;
-        eventData.dayOfWeek = newEvent.dayOfWeek;
-      } else {
-        // One-off event: use today's date
-        eventData.date = new Date().toISOString().split('T')[0];
-      }
+    if (newEvent.name && !isSubmitting) {
+      setIsSubmitting(true);
+      try {
+        const eventData: any = {
+          name: newEvent.name,
+          type: newEvent.type,
+          location: newEvent.location || undefined,
+          startTime: newEvent.startTime || undefined,
+          isRecurring: newEvent.isRecurring,
+        };
+        
+        if (newEvent.isRecurring) {
+          eventData.recurrenceRule = newEvent.recurrenceRule;
+          eventData.dayOfWeek = newEvent.dayOfWeek;
+        } else {
+          // One-off event: use today's date
+          eventData.date = new Date().toISOString().split('T')[0];
+        }
 
-      if (user?.role === 'admin' && newEvent.zoneId) {
-        eventData.zoneId = newEvent.zoneId;
-      }
+        if (user?.role === 'admin' && newEvent.zoneId) {
+          eventData.zoneId = newEvent.zoneId;
+        }
 
-      await addEvent(eventData);
-      setIsModalOpen(false);
-      setNewEvent({ 
-        name: '', type: 'Service', location: '', startTime: '09:00',
-        isRecurring: false, recurrenceRule: 'weekly', dayOfWeek: 0, zoneId: ''
-      });
-      // Refresh instances
-      setTimeout(loadInstances, 500);
+        await addEvent(eventData);
+        setIsModalOpen(false);
+        setNewEvent({ 
+          name: '', type: 'Service', location: '', startTime: '09:00',
+          isRecurring: false, recurrenceRule: 'weekly', dayOfWeek: 0, zoneId: ''
+        });
+        // Refresh instances
+        setTimeout(loadInstances, 500);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -497,9 +505,17 @@ const Attendance: React.FC<AttendanceProps> = ({ user }) => {
                </button>
                <button 
                  onClick={handleCreateEvent}
-                 className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                 disabled={isSubmitting || !newEvent.name}
+                 className="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 dark:bg-indigo-500 dark:hover:bg-indigo-600 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                >
-                 Create Event
+                 {isSubmitting ? (
+                   <>
+                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                     <span>Creating...</span>
+                   </>
+                 ) : (
+                   'Create Event'
+                 )}
                </button>
            </div>
         </div>

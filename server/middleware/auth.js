@@ -26,3 +26,15 @@ export function requireRole(roles = []) {
     return next();
   };
 }
+
+export function requireCompletedPasswordReset(req, res, next) {
+  const user = req.session?.user;
+  if (user?.mustChangePassword) {
+    return res.status(403).json({
+      success: false,
+      error: { message: 'Password change required before continuing' },
+      mustChangePassword: true,
+    });
+  }
+  return next();
+}

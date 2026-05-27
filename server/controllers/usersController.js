@@ -32,7 +32,13 @@ const UsersController = {
       }
 
       const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-      await UsersModel.update(user.id, { passwordHash });
+      await UsersModel.update(user.id, {
+        passwordHash,
+        temporaryPasswordHash: null,
+        temporaryPasswordExpiresAt: null,
+        passwordResetRequestedAt: null,
+        mustChangePassword: false,
+      });
 
       return res.json({ success: true });
     } catch (err) {
@@ -279,7 +285,8 @@ function toSafeUser(user) {
     firstName: user.first_name,
     lastName: user.last_name,
     createdAt: user.created_at,
-    mfaEnabled: user.mfa_enabled
+    mfaEnabled: user.mfa_enabled,
+    mustChangePassword: Boolean(user.must_change_password)
   };
 }
 

@@ -49,7 +49,9 @@ const Settings: React.FC = () => {
     birthdaySmsEnabled: true,
     anniversarySmsEnabled: true,
     baptismAnniversarySmsEnabled: true,
-    absenteeSmsEnabled: true
+    absenteeSmsEnabled: true,
+    autoInactiveEnabled: true,
+    autoInactiveThreshold: 3
   });
   
   // MFA Settings State (Admin Only)
@@ -105,7 +107,9 @@ const Settings: React.FC = () => {
         birthdaySmsEnabled: parseBoolean(settings.birthday_sms_enabled, true),
         anniversarySmsEnabled: parseBoolean(settings.anniversary_sms_enabled, true),
         baptismAnniversarySmsEnabled: parseBoolean(settings.baptism_anniversary_sms_enabled, true),
-        absenteeSmsEnabled: parseBoolean(settings.absentee_sms_enabled, true)
+        absenteeSmsEnabled: parseBoolean(settings.absentee_sms_enabled, true),
+        autoInactiveEnabled: parseBoolean(settings.auto_inactive_enabled, true),
+        autoInactiveThreshold: parseInt(settings.auto_inactive_threshold || '3', 10)
       });
       // Load MFA settings
       let enforcedRoles = [];
@@ -308,7 +312,9 @@ const Settings: React.FC = () => {
         birthday_sms_enabled: String(automationSettings.birthdaySmsEnabled),
         anniversary_sms_enabled: String(automationSettings.anniversarySmsEnabled),
         baptism_anniversary_sms_enabled: String(automationSettings.baptismAnniversarySmsEnabled),
-        absentee_sms_enabled: String(automationSettings.absenteeSmsEnabled)
+        absentee_sms_enabled: String(automationSettings.absenteeSmsEnabled),
+        auto_inactive_enabled: String(automationSettings.autoInactiveEnabled),
+        auto_inactive_threshold: String(automationSettings.autoInactiveThreshold)
       };
 
       const res = await apiFetch('/api/settings', {
@@ -333,7 +339,7 @@ const Settings: React.FC = () => {
     }
   };
 
-  const toggleAutomationSetting = (key: 'automatedSmsEnabled' | 'birthdaySmsEnabled' | 'anniversarySmsEnabled' | 'baptismAnniversarySmsEnabled' | 'absenteeSmsEnabled') => {
+  const toggleAutomationSetting = (key: 'automatedSmsEnabled' | 'birthdaySmsEnabled' | 'anniversarySmsEnabled' | 'baptismAnniversarySmsEnabled' | 'absenteeSmsEnabled' | 'autoInactiveEnabled') => {
     setAutomationSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -866,7 +872,7 @@ const Settings: React.FC = () => {
                     { key: 'birthdaySmsEnabled', label: 'Birthday Greetings', desc: 'Auto-send daily SMS to members celebrating birthdays.' },
                     { key: 'anniversarySmsEnabled', label: 'Wedding Anniversaries', desc: 'Auto-send daily SMS to members celebrating anniversaries.' },
                     { key: 'baptismAnniversarySmsEnabled', label: 'Baptism Anniversaries', desc: 'Auto-send daily SMS to members celebrating their baptism anniversary.' },
-                    { key: 'absenteeSmsEnabled', label: 'Absentee Follow-up', desc: 'Weekly smart check-ins for members missing consecutive services.' }
+                    { key: 'absenteeSmsEnabled', label: 'Absentee Follow-up', desc: 'Service-specific check-ins for members who miss a global or zonal service.' }
                   ].map((item) => (
                     <div key={item.key} className={`flex items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${isGlobalDisabled ? 'opacity-50 grayscale' : 'bg-white dark:bg-slate-800'} border-slate-200 dark:border-slate-700`}>
                       <div className="flex-1 min-w-0 pr-2">
@@ -883,6 +889,61 @@ const Settings: React.FC = () => {
                       </button>
                     </div>
                   ))}
+                </div>
+
+                {/* Member Status Automation Section */}
+                <div className="mt-10 pt-8 border-t border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-1.5 h-5 bg-amber-500 rounded-full" />
+                    <h3 className="text-lg font-black text-slate-800 dark:text-white">Member Status Automation</h3>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                    Automatically manage member activity status based on attendance patterns.
+                  </p>
+
+                  <div className={`flex items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${automationSettings.autoInactiveEnabled ? 'bg-white dark:bg-slate-800' : ''} border-slate-200 dark:border-slate-700`}>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <p className="font-bold text-slate-800 dark:text-white">Auto-Deactivate Absent Members</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Automatically set members to Inactive when they miss consecutive global services.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleAutomationSetting('autoInactiveEnabled')}
+                      disabled={isAutomationBusy}
+                      className={toggleButtonClass(automationSettings.autoInactiveEnabled, isAutomationBusy)}
+                    >
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${automationSettings.autoInactiveEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+
+                  {automationSettings.autoInactiveEnabled && (
+                    <div className="mt-4 p-5 rounded-2xl border border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 space-y-4">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Consecutive Absences Threshold</label>
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="number"
+                            min={1}
+                            max={52}
+                            value={automationSettings.autoInactiveThreshold}
+                            onChange={(e) => {
+                              const val = Math.max(1, Math.min(52, parseInt(e.target.value) || 1));
+                              setAutomationSettings(prev => ({ ...prev, autoInactiveThreshold: val }));
+                            }}
+                            disabled={isAutomationBusy}
+                            className="w-24 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-center font-bold text-lg dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                          />
+                          <p className="text-sm text-slate-500 dark:text-slate-400">consecutive global service absences before a member is automatically deactivated.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl dark:bg-emerald-500/5 dark:border-emerald-500/20">
+                        <span className="text-emerald-500 mt-0.5">✦</span>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                          <strong>Auto-Reactivation:</strong> Members are automatically set back to Active when they check in to any event (global or zonal).
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-8 flex justify-end">
