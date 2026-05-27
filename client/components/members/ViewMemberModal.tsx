@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Mail, Phone, Printer, User, Megaphone, Briefcase, MessageSquare,
   BarChart3, UserCircle, Loader2, AlertCircle, MapPin, GraduationCap,
-  Heart, Users, Award, FileText, Calendar, Copy, Check
+  Heart, Users, Award, FileText, Calendar, Copy, Check, X
 } from 'lucide-react';
 import {
   RadialBarChart, RadialBar, ResponsiveContainer,
@@ -95,6 +95,41 @@ const CopyButton: React.FC<{ value: string }> = ({ value }) => {
 // ─── Info Tab ────────────────────────────────────────────
 const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Member) => void }> = ({ member, zones, onOpenIdCard }) => {
   const occ = parseOccupation(member.occupation);
+  const [isAvatarExpanded, setIsAvatarExpanded] = useState(false);
+  const [startRect, setStartRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const [isFullyOpen, setIsFullyOpen] = useState(false);
+
+  useEffect(() => {
+    if (isAvatarExpanded) {
+      // Trigger the opening zoom on next frame
+      const raf = requestAnimationFrame(() => {
+        setIsFullyOpen(true);
+      });
+      return () => cancelAnimationFrame(raf);
+    } else {
+      setIsFullyOpen(false);
+    }
+  }, [isAvatarExpanded]);
+
+  const handleAvatarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!member.avatarUrl) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setStartRect({
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height
+    });
+    setIsAvatarExpanded(true);
+  };
+
+  const handleClose = () => {
+    setIsFullyOpen(false);
+    // Unmount the component after the transition completes
+    setTimeout(() => {
+      setIsAvatarExpanded(false);
+    }, 500);
+  };
 
   return (
     <div className="p-6 space-y-6 animate-enter">
@@ -105,7 +140,11 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
         
         <div className="relative flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
           {/* Avatar frame */}
-          <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-slate-100 shadow-md flex-shrink-0 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
+          <div 
+            onClick={handleAvatarClick}
+            className={`relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-slate-100 shadow-md flex-shrink-0 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 ${member.avatarUrl ? 'cursor-zoom-in hover:scale-[1.04] hover:border-indigo-400 active:scale-95 transition-all duration-300 ease-out' : ''}`}
+            title={member.avatarUrl ? "Click to expand photo" : undefined}
+          >
             {member.avatarUrl ? (
               <img src={member.avatarUrl} className="w-full h-full object-cover" alt="Profile" />
             ) : (
@@ -595,6 +634,58 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
           Generate Member ID Card
         </button>
       </div>
+
+      {/* iOS-Style Photo Lightbox Modal */}
+      {isAvatarExpanded && member.avatarUrl && (
+        <div
+          className={`fixed inset-0 z-[200] flex items-center justify-center select-none cursor-zoom-out transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            isFullyOpen ? 'bg-slate-950/70 backdrop-blur-xl' : 'bg-slate-950/0 backdrop-blur-[0px]'
+          }`}
+          onClick={handleClose}
+        >
+          {/* Close button */}
+          <button
+            onClick={handleClose}
+            className={`absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/10 hover:scale-105 active:scale-95 transition-all duration-300 z-[220] flex items-center justify-center shadow-lg ${
+              isFullyOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          >
+            <X size={20} />
+          </button>
+          
+          <div
+            className="fixed overflow-hidden border-[6px] border-white/20 shadow-2xl bg-slate-900 flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-[210]"
+            style={
+              isFullyOpen && startRect
+                ? {
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 'min(85vw, 420px)',
+                    height: 'min(85vw, 420px)',
+                    borderRadius: '40px',
+                  }
+                : startRect
+                ? {
+                    left: `${startRect.left}px`,
+                    top: `${startRect.top}px`,
+                    width: `${startRect.width}px`,
+                    height: `${startRect.height}px`,
+                    borderRadius: '16px',
+                    transform: 'none',
+                  }
+                : {}
+            }
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking the image card itself
+          >
+            <img
+              src={member.avatarUrl}
+              className="w-full h-full object-cover select-none pointer-events-none"
+              alt="Expanded Profile"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -835,6 +926,8 @@ const ViewMemberModal: React.FC<ViewMemberModalProps> = ({ isOpen, onClose, memb
   useEffect(() => {
     if (isOpen) setActiveTab('info');
   }, [isOpen, member?.id]);
+
+  if (!isOpen) return null;
 
   return (
     <Modal
