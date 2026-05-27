@@ -1,0 +1,6 @@
+# Netlify redirects and rewrites file.
+# This proxies all frontend API calls to the Render backend,
+# making cookies "first-party" so browsers (especially Safari) don't block them.
+
+/api/*  https://ecclesia-api-y5ot.onrender.com/api/:splat  200
+/uploads/*  https://ecclesia-api-y5ot.onrender.com/uploads/:splat  200
