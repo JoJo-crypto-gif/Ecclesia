@@ -3,6 +3,12 @@ import MessagesModel from '../models/messagesModel.js';
 import EmailTemplatesModel from '../models/emailTemplatesModel.js';
 import { sendSms } from '../services/messagingService.js';
 import EmailService from '../services/emailService.js';
+import {
+  sendBirthdaySMS,
+  sendAbsenteeSMS,
+  sendAnniversarySMS,
+  sendBaptismAnniversarySMS
+} from '../services/cronService.js';
 
 export const sendManualMessage = async (req, res) => {
   try {
@@ -229,6 +235,37 @@ export const deleteEmailTemplate = async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('deleteEmailTemplate Error:', err);
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
+};
+
+export const triggerAutomationJob = async (req, res) => {
+  try {
+    const { type } = req.body;
+    const validTypes = ['birthday', 'absentee', 'anniversary', 'baptism_anniversary'];
+    
+    if (!type || !validTypes.includes(type)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: { message: `Invalid automation type. Must be one of: ${validTypes.join(', ')}` } 
+      });
+    }
+
+    console.log(`[Manual Trigger] User triggered automated job: ${type}`);
+    
+    if (type === 'birthday') {
+      await sendBirthdaySMS();
+    } else if (type === 'absentee') {
+      await sendAbsenteeSMS();
+    } else if (type === 'anniversary') {
+      await sendAnniversarySMS();
+    } else if (type === 'baptism_anniversary') {
+      await sendBaptismAnniversarySMS();
+    }
+
+    res.json({ success: true, message: `Successfully triggered ${type} automated job.` });
+  } catch (err) {
+    console.error(`[Manual Trigger] Error triggering job ${type}:`, err);
     res.status(500).json({ success: false, error: { message: err.message } });
   }
 };

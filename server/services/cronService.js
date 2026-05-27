@@ -136,7 +136,7 @@ const sendAutomatedSmsToMembers = async ({
   return sentCount;
 };
 
-const sendBirthdaySMS = async () => {
+export const sendBirthdaySMS = async () => {
   if (!(await isAutomationEnabled('birthday_sms_enabled', 'ENABLE_BIRTHDAY_SMS'))) return;
   console.log('[Cron] Running Daily Birthday SMS check...');
 
@@ -188,7 +188,7 @@ const sendBirthdaySMS = async () => {
   }
 };
 
-const sendAbsenteeSMS = async () => {
+export const sendAbsenteeSMS = async () => {
   if (!(await isAutomationEnabled('absentee_sms_enabled', 'ENABLE_ABSENTEE_SMS'))) return;
   console.log('[Cron] Running Absentee SMS check for today...');
 
@@ -269,7 +269,7 @@ const sendAbsenteeSMS = async () => {
   }
 };
 
-const sendAnniversarySMS = async () => {
+export const sendAnniversarySMS = async () => {
   if (!(await isAutomationEnabled('anniversary_sms_enabled', 'ENABLE_ANNIVERSARY_SMS'))) return;
   console.log('[Cron] Running Daily Wedding Anniversary SMS check...');
 
@@ -322,7 +322,7 @@ const sendAnniversarySMS = async () => {
   }
 };
 
-const sendBaptismAnniversarySMS = async () => {
+export const sendBaptismAnniversarySMS = async () => {
   if (!(await isAutomationEnabled('baptism_anniversary_sms_enabled', 'ENABLE_BAPTISM_ANNIVERSARY_SMS'))) return;
   console.log('[Cron] Running Daily Baptism Anniversary SMS check...');
 

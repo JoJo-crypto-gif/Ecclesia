@@ -6,13 +6,15 @@ import {
   getEmailTemplateById,
   createEmailTemplate,
   updateEmailTemplate,
-  deleteEmailTemplate
+  deleteEmailTemplate,
+  triggerAutomationJob
 } from '../controllers/messagingController.js';
 import { checkPermission } from '../middleware/permissionMiddleware.js';
 
 const router = Router();
 
 router.post('/send', checkPermission('messaging', 'create'), sendManualMessage);
+router.post('/trigger-automation', checkPermission('messaging', 'create'), triggerAutomationJob);
 router.get('/history', checkPermission('messaging', 'read'), getMessageHistory);
 
 // ─── Email Template CRUD ─────────────────────────────────
