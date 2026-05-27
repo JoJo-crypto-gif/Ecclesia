@@ -4,6 +4,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import session from 'express-session';
+import connectPgSimple from 'connect-pg-simple';
+import pool from './config/db.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { testConnection } from './config/db.js';
@@ -49,7 +51,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ─── Session Auth ────────────────────────────────────────
+const PgStore = connectPgSimple(session);
 app.use(session({
+  store: new PgStore({
+    pool,
+    tableName: 'user_sessions',
+  }),
   name: 'ecclesia.sid',
   secret: process.env.SESSION_SECRET || 'dev-session-secret',
   resave: false,
