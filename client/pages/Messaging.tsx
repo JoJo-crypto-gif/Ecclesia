@@ -19,6 +19,19 @@ interface MessagingProps {
 const Messaging: React.FC<MessagingProps> = ({ user }) => {
   const { members, zones, messages, sendMessage, settings, updateSettings, stats, fetchAllMembers, emailTemplates, addEmailTemplate, updateEmailTemplate, deleteEmailTemplate } = useData();
   
+  const formatHHMM = (timeStr?: string) => {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes)) return timeStr;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+    const displayMinutes = minutes < 10 ? `0${minutes}` : minutes;
+    return `${displayHours}:${displayMinutes} ${ampm}`;
+  };
+
   const [triggeringJob, setTriggeringJob] = useState<string | null>(null);
   const [triggerSuccess, setTriggerSuccess] = useState<string | null>(null);
   const [triggerError, setTriggerError] = useState<string | null>(null);
@@ -1178,7 +1191,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                 Trigger Now
                               </button>
                               <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-                                <Clock size={11} className="text-pink-500 dark:text-pink-400" /> Daily · 8:00 AM
+                                <Clock size={11} className="text-pink-500 dark:text-pink-400" /> Daily · {formatHHMM(settings.birthday_sms_time || '08:00')}
                               </div>
                             </div>
                           </div>
@@ -1224,7 +1237,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                   <div className="w-6 h-6 rounded-full bg-pink-500 text-[9px] font-black text-white flex items-center justify-center shadow-md shadow-pink-500/10">
                                     🎂
                                   </div>
-                                  <span className="text-[10px] font-black text-slate-200 mt-1 uppercase tracking-wider">ECCLESIA</span>
+                                  <span className="text-[10px] font-black text-slate-200 mt-1 uppercase tracking-wider">{settings.church_name || 'Ecclesia'}</span>
                                   <span className="text-[7px] text-pink-400 uppercase font-extrabold tracking-widest mt-0.5">Birthday SMS</span>
                                 </div>
                                 
@@ -1234,10 +1247,10 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                     <p className="text-xs text-slate-800 dark:text-white leading-normal whitespace-pre-wrap break-words">
                                       {birthdayTemplate
                                         ? birthdayTemplate.replace(/\[FirstName\]/gi, 'Kwame').replace(/\[LastName\]/gi, 'Mensah')
-                                        : <span className="text-slate-350 dark:text-slate-650 italic text-[11px]">Hi Kwame, Happy Birthday! 🎉 God bless you this year and always.</span>
+                                        : <span className="text-slate-350 dark:text-slate-655 italic text-[11px]">Hi Kwame, Happy Birthday! 🎉 God bless you this year and always.</span>
                                       }
                                     </p>
-                                    <span className="block mt-1 text-[7px] font-bold text-slate-400 dark:text-slate-500 text-right select-none uppercase">Delivered · 8:00 AM</span>
+                                    <span className="block mt-1 text-[7px] font-bold text-slate-400 dark:text-slate-500 text-right select-none uppercase">Delivered · {formatHHMM(settings.birthday_sms_time || '08:00')}</span>
                                   </div>
                                 </div>
                                 
@@ -1271,7 +1284,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                 Trigger Now
                               </button>
                               <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-                                <Clock size={11} className="text-amber-500 dark:text-amber-400" /> Daily · 8:10 AM
+                                <Clock size={11} className="text-amber-500 dark:text-amber-400" /> Daily · {formatHHMM(settings.anniversary_sms_time || '08:10')}
                               </div>
                             </div>
                          </div>
@@ -1316,7 +1329,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                   <div className="w-6 h-6 rounded-full bg-amber-500 text-[9px] font-black text-white flex items-center justify-center shadow-md shadow-amber-500/10">
                                     💍
                                   </div>
-                                  <span className="text-[10px] font-black text-slate-200 mt-1 uppercase tracking-wider">ECCLESIA</span>
+                                  <span className="text-[10px] font-black text-slate-200 mt-1 uppercase tracking-wider">{settings.church_name || 'Ecclesia'}</span>
                                   <span className="text-[7px] text-amber-400 uppercase font-extrabold tracking-widest mt-0.5">Anniversary SMS</span>
                                 </div>
                                 
@@ -1332,7 +1345,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                         : <span className="text-slate-350 dark:text-slate-655 italic text-[11px]">Hi Kojo, happy wedding anniversary! Wishing you many more blessed years.</span>
                                       }
                                     </p>
-                                    <span className="block mt-1 text-[7px] font-bold text-slate-400 dark:text-slate-500 text-right select-none uppercase">Delivered · 8:10 AM</span>
+                                    <span className="block mt-1 text-[7px] font-bold text-slate-400 dark:text-slate-500 text-right select-none uppercase">Delivered · {formatHHMM(settings.anniversary_sms_time || '08:10')}</span>
                                   </div>
                                 </div>
                                 
@@ -1366,7 +1379,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                 Trigger Now
                               </button>
                               <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-                                <Clock size={11} className="text-cyan-500 dark:text-cyan-400" /> Daily · 8:20 AM
+                                <Clock size={11} className="text-cyan-500 dark:text-cyan-400" /> Daily · {formatHHMM(settings.baptism_anniversary_sms_time || '08:20')}
                               </div>
                             </div>
                          </div>
@@ -1382,7 +1395,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200/80 rounded-2xl focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-400 focus:outline-none transition-all text-sm text-slate-800 placeholder-slate-300 dark:bg-slate-950 dark:border-slate-850 dark:text-white dark:placeholder-slate-600 resize-none leading-relaxed"
                                />
                              </div>
-                             <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-850">
+                             <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-855">
                                <span className="text-[11px] text-slate-400">Standard SMS is max 160 characters</span>
                                <span className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded ${baptismAnniversaryTemplate.length > 160 ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/20' : 'bg-slate-50 text-slate-500 dark:bg-slate-950/40'}`}>
                                  {baptismAnniversaryTemplate.length}/160
@@ -1412,9 +1425,9 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                  <div className="w-6 h-6 rounded-full bg-cyan-500 text-[9px] font-black text-white flex items-center justify-center shadow-md shadow-cyan-500/10">
                                    💧
                                  </div>
-                                 <span className="text-[10px] font-black text-slate-200 mt-1 uppercase tracking-wider">ECCLESIA</span>
+                                 <span className="text-[10px] font-black text-slate-200 mt-1 uppercase tracking-wider">{settings.church_name || 'Ecclesia'}</span>
                                  <span className="text-[7px] text-cyan-400 uppercase font-extrabold tracking-widest mt-0.5">Baptism SMS</span>
-                               </div>
+                                </div>
                                
                                {/* Chat Bubble Screen */}
                                <div className="flex-1 p-3 overflow-y-auto flex flex-col justify-end bg-[#f2f2f7] dark:bg-[#1c1c1e] min-h-[140px] text-left">
@@ -1428,7 +1441,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                        : <span className="text-slate-350 dark:text-slate-655 italic text-[11px]">Hi Ama, happy baptism anniversary! Celebrating 5 years since your dedication to Christ.</span>
                                      }
                                    </p>
-                                   <span className="block mt-1 text-[7px] font-bold text-slate-400 dark:text-slate-500 text-right select-none uppercase">Delivered · 8:20 AM</span>
+                                   <span className="block mt-1 text-[7px] font-bold text-slate-400 dark:text-slate-500 text-right select-none uppercase">Delivered · {formatHHMM(settings.baptism_anniversary_sms_time || '08:20')}</span>
                                  </div>
                                </div>
                                
@@ -1440,7 +1453,6 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                            </div>
                          </div>
                        </div>
-
                        {/* Missed Service Template Card */}
                        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/40 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                          <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200/60 dark:from-blue-900/10 dark:to-indigo-900/5 dark:border-slate-800">
@@ -1462,7 +1474,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                 Trigger Now
                               </button>
                               <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-                                <Clock size={11} className="text-blue-500 dark:text-blue-400" /> Sundays · 2:30 PM
+                                <Clock size={11} className="text-blue-500 dark:text-blue-400" /> {settings.absentee_sms_delay_hours || '1'} {parseInt(settings.absentee_sms_delay_hours || '1', 10) === 1 ? 'hour' : 'hours'} after completion
                               </div>
                             </div>
                          </div>
@@ -1508,7 +1520,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                  <div className="w-6 h-6 rounded-full bg-blue-500 text-[9px] font-black text-white flex items-center justify-center shadow-md shadow-blue-500/10">
                                    🙏
                                  </div>
-                                 <span className="text-[10px] font-black text-slate-200 mt-1 uppercase tracking-wider">ECCLESIA</span>
+                                 <span className="text-[10px] font-black text-slate-200 mt-1 uppercase tracking-wider">{settings.church_name || 'Ecclesia'}</span>
                                  <span className="text-[7px] text-blue-400 uppercase font-extrabold tracking-widest mt-0.5">Missed Service</span>
                                </div>
                                
@@ -1525,7 +1537,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                        : <span className="text-slate-350 dark:text-slate-655 italic text-[11px]">Hi Abena, we missed you at Sunday Service today! We hope you're doing well.</span>
                                      }
                                    </p>
-                                   <span className="block mt-1 text-[7px] font-bold text-slate-400 dark:text-slate-500 text-right select-none uppercase">Delivered · 2:30 PM</span>
+                                   <span className="block mt-1 text-[7px] font-bold text-slate-400 dark:text-slate-500 text-right select-none uppercase">Delivered · {settings.absentee_sms_delay_hours || '1'} {parseInt(settings.absentee_sms_delay_hours || '1', 10) === 1 ? 'hour' : 'hours'} after completion</span>
                                  </div>
                                </div>
                                
@@ -1536,7 +1548,7 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                              </div>
                            </div>
                          </div>
-                       </div>
+                        </div>
 
                      </div>
 

@@ -199,7 +199,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="w-full sm:w-auto flex justify-between items-center sm:block">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight dark:text-white">Directory</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight dark:text-white">Members Directory</h1>
               <p className="text-slate-500 mt-1 dark:text-slate-400 text-xs sm:text-sm">Manage member profiles, roles, and status.</p>
             </div>
           </div>

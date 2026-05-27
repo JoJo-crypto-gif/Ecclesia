@@ -9,6 +9,7 @@ import {
   sendAnniversarySMS,
   sendBaptismAnniversarySMS
 } from '../services/cronService.js';
+import AuditService from '../services/auditService.js';
 
 export const sendManualMessage = async (req, res) => {
   try {
@@ -90,7 +91,7 @@ export const sendManualMessage = async (req, res) => {
       });
 
       // Persist to database regardless of mock/real delivery
-      await MessagesModel.create({
+      const createdMsg = await MessagesModel.create({
         content: message,
         channel: 'email',
         recipientType: normalizedRecipientType,
@@ -104,6 +105,17 @@ export const sendManualMessage = async (req, res) => {
         senderZoneId: sessionUser?.zoneId || null,
         subject: subject || null,
         attachments: Array.isArray(attachments) ? attachments : null,
+      });
+
+      AuditService.log({
+        req,
+        user: sessionUser,
+        action: 'SEND',
+        module: 'messaging',
+        recordId: createdMsg.id,
+        recordName: recipientLabel,
+        description: `Sent manual email to ${emailAddresses.length} recipients. Subject: "${subject || '(No Subject)'}"`,
+        changes: AuditService.computeChanges({}, createdMsg)
       });
 
       if (!emailResult.success && !emailResult.mocked) {
@@ -125,7 +137,7 @@ export const sendManualMessage = async (req, res) => {
     }
 
     // Persist to database
-    await MessagesModel.create({
+    const createdMsg = await MessagesModel.create({
       content: message,
       channel: 'sms',
       recipientType: normalizedRecipientType,
@@ -137,6 +149,17 @@ export const sendManualMessage = async (req, res) => {
       senderUserId: sessionUser?.id || null,
       senderRole: sessionUser?.role || null,
       senderZoneId: sessionUser?.zoneId || null,
+    });
+
+    AuditService.log({
+      req,
+      user: sessionUser,
+      action: 'SEND',
+      module: 'messaging',
+      recordId: createdMsg.id,
+      recordName: recipientLabel,
+      description: `Sent manual SMS to ${phoneNumbers.length} recipients`,
+      changes: AuditService.computeChanges({}, createdMsg)
     });
 
     res.json({ success: true, count: phoneNumbers.length });
@@ -201,10 +224,21 @@ export const getEmailTemplateById = async (req, res) => {
 export const createEmailTemplate = async (req, res) => {
   try {
     const { name, subject, body } = req.body;
+    const sessionUser = req.session?.user;
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ success: false, error: { message: 'Template name is required.' } });
     }
     const template = await EmailTemplatesModel.create({ name: name.trim(), subject, body });
+    AuditService.log({
+      req,
+      user: sessionUser,
+      action: 'CREATE',
+      module: 'messaging',
+      recordId: template.id,
+      recordName: template.name,
+      description: `Created email template: "${template.name}"`,
+      changes: AuditService.computeChanges({}, template)
+    });
     res.status(201).json({ success: true, data: template });
   } catch (err) {
     console.error('createEmailTemplate Error:', err);
@@ -215,9 +249,27 @@ export const createEmailTemplate = async (req, res) => {
 export const updateEmailTemplate = async (req, res) => {
   try {
     const { name, subject, body } = req.body;
+    const sessionUser = req.session?.user;
+    const existing = await EmailTemplatesModel.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: { message: 'Template not found' } });
+    }
     const template = await EmailTemplatesModel.update(req.params.id, { name, subject, body });
     if (!template) {
       return res.status(404).json({ success: false, error: { message: 'Template not found' } });
+    }
+    const changes = AuditService.computeChanges(existing, template);
+    if (Object.keys(changes).length > 0) {
+      AuditService.log({
+        req,
+        user: sessionUser,
+        action: 'UPDATE',
+        module: 'messaging',
+        recordId: template.id,
+        recordName: template.name,
+        description: `Updated email template: "${template.name}"`,
+        changes
+      });
     }
     res.json({ success: true, data: template });
   } catch (err) {
@@ -228,10 +280,25 @@ export const updateEmailTemplate = async (req, res) => {
 
 export const deleteEmailTemplate = async (req, res) => {
   try {
+    const sessionUser = req.session?.user;
+    const existing = await EmailTemplatesModel.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: { message: 'Template not found' } });
+    }
     const deleted = await EmailTemplatesModel.deleteById(req.params.id);
     if (!deleted) {
       return res.status(404).json({ success: false, error: { message: 'Template not found' } });
     }
+    AuditService.log({
+      req,
+      user: sessionUser,
+      action: 'DELETE',
+      module: 'messaging',
+      recordId: existing.id,
+      recordName: existing.name,
+      description: `Deleted email template: "${existing.name}"`,
+      changes: AuditService.computeChanges(existing, {})
+    });
     res.json({ success: true });
   } catch (err) {
     console.error('deleteEmailTemplate Error:', err);
@@ -242,6 +309,7 @@ export const deleteEmailTemplate = async (req, res) => {
 export const triggerAutomationJob = async (req, res) => {
   try {
     const { type } = req.body;
+    const sessionUser = req.session?.user;
     const validTypes = ['birthday', 'absentee', 'anniversary', 'baptism_anniversary'];
     
     if (!type || !validTypes.includes(type)) {
@@ -262,6 +330,16 @@ export const triggerAutomationJob = async (req, res) => {
     } else if (type === 'baptism_anniversary') {
       await sendBaptismAnniversarySMS();
     }
+
+    AuditService.log({
+      req,
+      user: sessionUser,
+      action: 'TRIGGER',
+      module: 'messaging',
+      recordId: `automation_${type}`,
+      recordName: `${type} automation`,
+      description: `Manually triggered automated SMS job: ${type}`,
+    });
 
     res.json({ success: true, message: `Successfully triggered ${type} automated job.` });
   } catch (err) {

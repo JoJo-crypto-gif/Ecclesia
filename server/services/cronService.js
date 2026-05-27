@@ -190,36 +190,44 @@ export const sendBirthdaySMS = async () => {
 
 export const sendAbsenteeSMS = async () => {
   if (!(await isAutomationEnabled('absentee_sms_enabled', 'ENABLE_ABSENTEE_SMS'))) return;
-  console.log('[Cron] Running Absentee SMS check for today...');
 
   try {
     const configuredTemplate = await SettingsModel.getSetting('absentee_sms_template');
-    if (!configuredTemplate) {
-      console.log('[Cron] No absentee sms template found. Skipping.');
-      return;
-    }
+    if (!configuredTemplate) return;
     const template = ensureEventNameInTemplate(configuredTemplate);
 
-    // Find today's non-cancelled service instances only.
+    // Read admin-configured delay (default 1 hour)
+    const delaySetting = await SettingsModel.getSetting('absentee_sms_delay_hours');
+    const delayHours = Math.max(1, parseInt(delaySetting, 10) || 1);
+
+    // Find completed service instances where completed_at is at least delayHours ago
+    // and absentee SMS has NOT already been sent for that instance.
     const instancesResult = await query(`
       SELECT
         ei.id,
         ei.event_id,
         ei.date,
+        ei.completed_at,
         e.zone_id,
         COALESCE(NULLIF(ei.name_override, ''), e.name) AS event_name,
         COALESCE(NULLIF(ei.type_override, ''), e.type) AS event_type
       FROM event_instances ei
       JOIN events e ON e.id = ei.event_id
-      WHERE ei.date = CURRENT_DATE
-        AND ei.status <> 'cancelled'
+      WHERE ei.status = 'completed'
+        AND ei.completed_at IS NOT NULL
+        AND ei.completed_at <= NOW() - INTERVAL '1 hour' * $1
         AND LOWER(COALESCE(NULLIF(ei.type_override, ''), e.type)) = 'service'
-    `);
+        AND NOT EXISTS (
+          SELECT 1 FROM automated_message_log aml
+          WHERE aml.event_instance_id = ei.id
+            AND aml.automation_type = 'absentee'
+            AND aml.status IN ('sent', 'pending')
+        )
+    `, [delayHours]);
 
-    if (instancesResult.rows.length === 0) {
-      console.log('[Cron] No service instances recorded for today. Skipping absentee SMS.');
-      return;
-    }
+    if (instancesResult.rows.length === 0) return;
+
+    console.log(`[Cron] Found ${instancesResult.rows.length} completed service(s) ready for absentee follow-up.`);
 
     for (const instance of instancesResult.rows) {
       // Find active members in this service scope who missed this service.
@@ -239,7 +247,7 @@ export const sendAbsenteeSMS = async () => {
 
       const absentees = absenteesResult.rows;
       if (absentees.length > 0) {
-        console.log(`[Cron] Found ${absentees.length} absentees for ${instance.event_name}. Dispatching SMS...`);
+        console.log(`[Cron] Found ${absentees.length} absentees for ${instance.event_name} (${instance.date}). Dispatching SMS...`);
         const sentCount = await sendAutomatedSmsToMembers({
           automationType: 'absentee',
           template,
@@ -388,27 +396,66 @@ const syncPastEventInstances = async () => {
   }
 };
 
+// ─── Configurable Time-Based Runner ─────────────────────────
+// Instead of hardcoded cron schedules, a minutely runner reads
+// admin-configured times from settings and fires jobs when matched.
+const dateJobLastRun = new Map();
+
+const getConfiguredTime = async (settingKey, defaultTime) => {
+  const val = await SettingsModel.getSetting(settingKey);
+  if (val && /^\d{2}:\d{2}$/.test(val)) return val;
+  return defaultTime;
+};
+
+const getCurrentHHMM = () => {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+};
+
+const getTodayDateStr = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+const runDateBasedJobs = async () => {
+  const currentTime = getCurrentHHMM();
+  const today = getTodayDateStr();
+
+  const jobs = [
+    { key: 'birthday', settingKey: 'birthday_sms_time', defaultTime: '08:00', fn: sendBirthdaySMS },
+    { key: 'anniversary', settingKey: 'anniversary_sms_time', defaultTime: '08:00', fn: sendAnniversarySMS },
+    { key: 'baptism_anniversary', settingKey: 'baptism_anniversary_sms_time', defaultTime: '08:00', fn: sendBaptismAnniversarySMS },
+  ];
+
+  for (const job of jobs) {
+    try {
+      const configuredTime = await getConfiguredTime(job.settingKey, job.defaultTime);
+      const lastRun = dateJobLastRun.get(job.key);
+
+      if (currentTime === configuredTime && lastRun !== today) {
+        console.log(`[Cron] Time match for ${job.key} (${configuredTime}). Running...`);
+        dateJobLastRun.set(job.key, today);
+        await job.fn();
+      }
+    } catch (error) {
+      console.error(`[Cron] Error checking ${job.key} schedule:`, error);
+    }
+  }
+};
+
 export const initCronJobs = () => {
   console.log('🤖 Initializing Automated SMS Cron Jobs...');
   syncPastEventInstances();
   
-  // Birthday Job: Run every day at 08:00 AM
-  cron.schedule('0 8 * * *', () => {
-    sendBirthdaySMS();
+  // Minutely runner: checks admin-configured send times for date-based jobs
+  cron.schedule('* * * * *', () => {
+    runDateBasedJobs();
   });
 
-  // Anniversary Job: Run every day at 08:10 AM
-  cron.schedule('10 8 * * *', () => {
-    sendAnniversarySMS();
-  });
-
-  // Baptism Anniversary Job: Run every day at 08:20 AM
-  cron.schedule('20 8 * * *', () => {
-    sendBaptismAnniversarySMS();
-  });
-
-  // Absentee Job: Run every Sunday at 14:30 (2:30 PM)
-  cron.schedule('30 14 * * 0', () => {
+  // Absentee runner: checks every 5 minutes for completed services past delay threshold
+  cron.schedule('*/5 * * * *', () => {
     sendAbsenteeSMS();
   });
 

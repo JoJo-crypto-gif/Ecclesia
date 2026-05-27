@@ -179,7 +179,8 @@ const EventsModel = {
            date = COALESCE($4, date),
            name_override = CASE WHEN $5::text = '' THEN NULL ELSE COALESCE($5, name_override) END,
            type_override = CASE WHEN $6::text = '' THEN NULL ELSE COALESCE($6, type_override) END,
-           location_override = CASE WHEN $7::text = '' THEN NULL ELSE COALESCE($7, location_override) END
+           location_override = CASE WHEN $7::text = '' THEN NULL ELSE COALESCE($7, location_override) END,
+           completed_at = CASE WHEN $2 = 'completed' AND completed_at IS NULL THEN NOW() ELSE completed_at END
        WHERE id = $1
        RETURNING *`,
       [instanceId, status, notes, date, nameOverride, typeOverride, locationOverride]
@@ -221,7 +222,8 @@ const EventsModel = {
   async syncPastScheduledInstances() {
     const result = await query(
       `UPDATE event_instances
-       SET status = 'completed'
+       SET status = 'completed',
+           completed_at = COALESCE(completed_at, NOW())
        WHERE status = 'scheduled' AND date < CURRENT_DATE`
     );
     return result.rowCount || 0;

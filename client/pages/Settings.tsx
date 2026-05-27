@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, ImageIcon, RotateCcw, User, ShieldCheck, School, Zap, BellRing, Settings as SettingsIcon, Users, Trash2, Plus, Search, Loader2, ChevronDown } from 'lucide-react';
+import { Upload, ImageIcon, RotateCcw, User, ShieldCheck, School, Zap, BellRing, Settings as SettingsIcon, Users, Trash2, Plus, Search, Loader2, ChevronDown, Clock } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -54,7 +54,11 @@ const Settings: React.FC = () => {
     baptismAnniversarySmsEnabled: true,
     absenteeSmsEnabled: true,
     autoInactiveEnabled: true,
-    autoInactiveThreshold: 3
+    autoInactiveThreshold: 3,
+    birthdaySmsTime: '08:00',
+    anniversarySmsTime: '08:00',
+    baptismAnniversarySmsTime: '08:00',
+    absenteeSmsDelayHours: 1
   });
   
   // MFA Settings State (Admin Only)
@@ -114,7 +118,11 @@ const Settings: React.FC = () => {
         baptismAnniversarySmsEnabled: parseBoolean(settings.baptism_anniversary_sms_enabled, true),
         absenteeSmsEnabled: parseBoolean(settings.absentee_sms_enabled, true),
         autoInactiveEnabled: parseBoolean(settings.auto_inactive_enabled, true),
-        autoInactiveThreshold: parseInt(settings.auto_inactive_threshold || '3', 10)
+        autoInactiveThreshold: parseInt(settings.auto_inactive_threshold || '3', 10),
+        birthdaySmsTime: settings.birthday_sms_time || '08:00',
+        anniversarySmsTime: settings.anniversary_sms_time || '08:00',
+        baptismAnniversarySmsTime: settings.baptism_anniversary_sms_time || '08:00',
+        absenteeSmsDelayHours: parseInt(settings.absentee_sms_delay_hours || '1', 10)
       });
       // Load MFA settings
       let enforcedRoles = [];
@@ -319,7 +327,11 @@ const Settings: React.FC = () => {
         baptism_anniversary_sms_enabled: String(automationSettings.baptismAnniversarySmsEnabled),
         absentee_sms_enabled: String(automationSettings.absenteeSmsEnabled),
         auto_inactive_enabled: String(automationSettings.autoInactiveEnabled),
-        auto_inactive_threshold: String(automationSettings.autoInactiveThreshold)
+        auto_inactive_threshold: String(automationSettings.autoInactiveThreshold),
+        birthday_sms_time: automationSettings.birthdaySmsTime,
+        anniversary_sms_time: automationSettings.anniversarySmsTime,
+        baptism_anniversary_sms_time: automationSettings.baptismAnniversarySmsTime,
+        absentee_sms_delay_hours: String(automationSettings.absenteeSmsDelayHours)
       };
 
       const res = await apiFetch('/api/settings', {
@@ -967,26 +979,66 @@ const Settings: React.FC = () => {
 
                 <div className="grid grid-cols-1 gap-4 mt-6">
                   {[
-                    { key: 'birthdaySmsEnabled', label: 'Birthday Greetings', desc: 'Auto-send daily SMS to members celebrating birthdays.' },
-                    { key: 'anniversarySmsEnabled', label: 'Wedding Anniversaries', desc: 'Auto-send daily SMS to members celebrating anniversaries.' },
-                    { key: 'baptismAnniversarySmsEnabled', label: 'Baptism Anniversaries', desc: 'Auto-send daily SMS to members celebrating their baptism anniversary.' },
-                    { key: 'absenteeSmsEnabled', label: 'Absentee Follow-up', desc: 'Service-specific check-ins for members who miss a global or zonal service.' }
-                  ].map((item) => (
-                    <div key={item.key} className={`flex items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${isGlobalDisabled ? 'opacity-50 grayscale' : 'bg-white dark:bg-slate-800'} border-slate-200 dark:border-slate-700`}>
-                      <div className="flex-1 min-w-0 pr-2">
-                        <p className="font-bold text-slate-800 dark:text-white">{item.label}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.desc}</p>
+                    { key: 'birthdaySmsEnabled', timeKey: 'birthdaySmsTime', label: 'Birthday Greetings', desc: 'Auto-send daily SMS to members celebrating birthdays.', type: 'time' as const },
+                    { key: 'anniversarySmsEnabled', timeKey: 'anniversarySmsTime', label: 'Wedding Anniversaries', desc: 'Auto-send daily SMS to members celebrating anniversaries.', type: 'time' as const },
+                    { key: 'baptismAnniversarySmsEnabled', timeKey: 'baptismAnniversarySmsTime', label: 'Baptism Anniversaries', desc: 'Auto-send daily SMS to members celebrating their baptism anniversary.', type: 'time' as const },
+                    { key: 'absenteeSmsEnabled', timeKey: 'absenteeSmsDelayHours', label: 'Absentee Follow-up', desc: 'Send check-in SMS to members who miss a service, triggered after the service is completed.', type: 'delay' as const }
+                  ].map((item) => {
+                    const isEnabled = !!automationSettings[item.key as keyof typeof automationSettings];
+                    return (
+                    <div key={item.key} className={`rounded-2xl border transition-all ${isGlobalDisabled ? 'opacity-50 grayscale' : 'bg-white dark:bg-slate-800'} border-slate-200 dark:border-slate-700`}>
+                      <div className="flex items-center justify-between gap-4 p-5">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <p className="font-bold text-slate-800 dark:text-white">{item.label}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.desc}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleAutomationSetting(item.key as any)}
+                          disabled={isAutomationBusy || isGlobalDisabled}
+                          className={toggleButtonClass(isEnabled, isAutomationBusy || isGlobalDisabled)}
+                        >
+                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${isEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleAutomationSetting(item.key as any)}
-                        disabled={isAutomationBusy || isGlobalDisabled}
-                        className={toggleButtonClass(automationSettings[item.key as keyof typeof automationSettings], isAutomationBusy || isGlobalDisabled)}
-                      >
-                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${automationSettings[item.key as keyof typeof automationSettings] ? 'translate-x-6' : 'translate-x-1'}`} />
-                      </button>
+                      {isEnabled && !isGlobalDisabled && (
+                        <div className="px-5 pb-5 pt-0">
+                          <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                            <Clock size={16} className="text-indigo-500 shrink-0" />
+                            {item.type === 'time' ? (
+                              <>
+                                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">Send at</label>
+                                <input
+                                  type="time"
+                                  value={String(automationSettings[item.timeKey as keyof typeof automationSettings])}
+                                  onChange={(e) => setAutomationSettings(prev => ({ ...prev, [item.timeKey]: e.target.value }))}
+                                  disabled={isAutomationBusy}
+                                  className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                />
+                                <span className="text-xs text-slate-400 dark:text-slate-500">daily</span>
+                              </>
+                            ) : (
+                              <>
+                                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">Send</label>
+                                <select
+                                  value={Number(automationSettings[item.timeKey as keyof typeof automationSettings])}
+                                  onChange={(e) => setAutomationSettings(prev => ({ ...prev, [item.timeKey]: parseInt(e.target.value, 10) }))}
+                                  disabled={isAutomationBusy}
+                                  className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                >
+                                  {[1, 2, 3, 4, 5, 6].map(h => (
+                                    <option key={h} value={h}>{h} hour{h > 1 ? 's' : ''}</option>
+                                  ))}
+                                </select>
+                                <span className="text-xs text-slate-400 dark:text-slate-500">after service completion</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Member Status Automation Section */}
