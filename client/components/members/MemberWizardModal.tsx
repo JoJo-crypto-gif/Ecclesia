@@ -20,6 +20,7 @@ const EMPLOYMENT_STATUS_OPTIONS = [
 const EDUCATION_OPTIONS = [
     { value: 'Basic', label: 'Basic' },
     { value: 'JHS', label: 'JHS (Junior High School)' },
+    { value: 'MSLC', label: 'MSLC' },
     { value: 'SHS', label: 'SHS (Senior High School)' },
     { value: 'Degree', label: 'Degree' },
     { value: '2nd Degree', label: '2nd Degree' },
@@ -30,7 +31,7 @@ const EDUCATION_OPTIONS = [
 ];
 
 const isStandardEducation = (val?: string) => {
-    return val ? ['Basic', 'JHS', 'SHS', 'Degree', '2nd Degree', 'Masters (MSc)', 'Master (MBA)', 'PhD'].includes(val) : false;
+    return val ? ['Basic', 'JHS', 'MSLC', 'SHS', 'Degree', '2nd Degree', 'Masters (MSc)', 'Master (MBA)', 'PhD'].includes(val) : false;
 };
 
 
@@ -119,10 +120,6 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
 
     const interestOptions = React.useMemo(() => {
         const baseOptions = [
-            { value: 'Choir', label: 'Choir' },
-            { value: 'Ushering', label: 'Ushering' },
-            { value: 'Media', label: 'Media' },
-            { value: "Children's Ministry", label: "Children's Ministry" },
             { value: 'Evangelism', label: 'Evangelism' },
             { value: 'Edification', label: 'Edification' },
             { value: 'Baptism', label: 'Baptism' }
