@@ -296,23 +296,29 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Employment Status</span>
               <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider inline-block mb-3 border ${
                 occ.status === 'Employed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                occ.status === 'Self-Employed' ? 'bg-teal-50 text-teal-700 border-teal-100 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20' :
                 occ.status === 'Student' ? 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20' :
+                occ.status === 'Retired' ? 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' :
                 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
               }`}>
-                {occ.status || 'Not specified'}
+                {occ.status === 'Retired' ? 'Retired / Pensioner' : (occ.status || 'Not specified')}
               </span>
 
-              {occ.status === 'Employed' && (occ.role || occ.organization) && (
+              {(occ.status === 'Employed' || occ.status === 'Self-Employed') && (occ.role || occ.organization) && (
                 <div className="bg-white/60 dark:bg-slate-900/30 border border-slate-200/40 dark:border-slate-700/40 rounded-xl p-3 space-y-2.5 shadow-xs">
                   {occ.role && (
                     <div>
-                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Job Title / Role</span>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">
+                        {occ.status === 'Self-Employed' ? 'Profession / Business' : 'Job Title / Role'}
+                      </span>
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{occ.role}</span>
                     </div>
                   )}
                   {occ.organization && (
                     <div>
-                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">Workplace / Employer</span>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block mb-0.5">
+                        {occ.status === 'Self-Employed' ? 'Business Location / Name' : 'Workplace / Employer'}
+                      </span>
                       <span className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
                         <Briefcase size={12} className="text-slate-400 shrink-0" />
                         {occ.organization}
@@ -348,7 +354,7 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
                 </div>
               )}
 
-              {occ.status !== 'Employed' && occ.status !== 'Student' && !occ.role && !occ.organization && (
+              {occ.status !== 'Employed' && occ.status !== 'Self-Employed' && occ.status !== 'Student' && !occ.role && !occ.organization && (
                 <span className="text-xs text-slate-400 dark:text-slate-600 italic block">No career details specified.</span>
               )}
             </div>

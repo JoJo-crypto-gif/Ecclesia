@@ -1,5 +1,5 @@
 export interface EmploymentDetails {
-  status: 'Employed' | 'Unemployed' | 'Student';
+  status: 'Employed' | 'Unemployed' | 'Student' | 'Retired' | 'Self-Employed';
   role?: string;        // "what do you do" (job/major)
   organization?: string;// "where do you work" (workplace/school)
   location?: string;    // "where is the school located" (location)
@@ -23,7 +23,7 @@ export const parseOccupation = (raw?: string | null): EmploymentDetails => {
       if (parsed && typeof parsed === 'object') {
         const status = parsed.status || 'Employed';
         return {
-          status: status === 'Employed' || status === 'Unemployed' || status === 'Student' ? status : 'Employed',
+          status: status === 'Employed' || status === 'Unemployed' || status === 'Student' || status === 'Retired' || status === 'Self-Employed' ? status : 'Employed',
           role: parsed.role || '',
           organization: parsed.organization || '',
           location: parsed.location || '',
@@ -76,6 +76,19 @@ export const formatOccupation = (raw?: string | null): string => {
     return 'Employed';
   }
 
+  if (details.status === 'Self-Employed') {
+    if (details.role && details.organization) {
+      return `${details.role} at ${details.organization}`;
+    }
+    if (details.role) {
+      return details.role;
+    }
+    if (details.organization) {
+      return `Self-Employed at ${details.organization}`;
+    }
+    return 'Self-Employed';
+  }
+
   if (details.status === 'Student') {
     const rolePart = details.role ? `${details.role} ` : '';
     const label = `${rolePart}Student`;
@@ -87,6 +100,10 @@ export const formatOccupation = (raw?: string | null): string => {
       return `${label} at ${details.organization}`;
     }
     return label;
+  }
+
+  if (details.status === 'Retired') {
+    return 'Retired / Pensioner';
   }
 
   if (details.status === 'Unemployed') {

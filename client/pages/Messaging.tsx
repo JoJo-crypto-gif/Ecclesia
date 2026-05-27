@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { User, Member, ManualMessagePayload, EmailTemplate } from '../types';
+import { apiFetch } from '../utils/api';
 import CustomSelect from '../components/CustomSelect';
 import { 
   MessageSquare, Mail, Smartphone, Users, Send, 
@@ -17,6 +18,39 @@ interface MessagingProps {
 
 const Messaging: React.FC<MessagingProps> = ({ user }) => {
   const { members, zones, messages, sendMessage, settings, updateSettings, stats, fetchAllMembers, emailTemplates, addEmailTemplate, updateEmailTemplate, deleteEmailTemplate } = useData();
+  
+  const [triggeringJob, setTriggeringJob] = useState<string | null>(null);
+  const [triggerSuccess, setTriggerSuccess] = useState<string | null>(null);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
+
+  const handleTriggerAutomation = async (type: 'birthday' | 'anniversary' | 'baptism_anniversary' | 'absentee') => {
+    setTriggeringJob(type);
+    setTriggerSuccess(null);
+    setTriggerError(null);
+    try {
+      const res = await apiFetch('/api/messaging/trigger-automation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type })
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        setTriggerSuccess(type);
+        setTimeout(() => setTriggerSuccess(null), 5000);
+      } else {
+        setTriggerError(data?.error?.message || `Failed to trigger ${type} automated SMS.`);
+        setTimeout(() => setTriggerError(null), 5000);
+      }
+    } catch (err: any) {
+      setTriggerError(err.message || 'Failed to trigger automated job.');
+      setTimeout(() => setTriggerError(null), 5000);
+    } finally {
+      setTriggeringJob(null);
+    }
+  };
+
   const HISTORY_PAGE_SIZE = 5;
   const isZoneLeader = user?.role === 'zone_leader';
   const canManageTemplates = user?.role === 'admin';
@@ -1110,6 +1144,18 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                        </div>
                      </div>
 
+                      {triggerSuccess && (
+                        <div className="p-4 mb-4 rounded-2xl bg-emerald-50 border border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/30 text-emerald-800 dark:text-emerald-300 text-xs font-black flex items-center gap-2.5 animate-enter">
+                          <CheckCircle size={16} className="text-emerald-600 dark:text-emerald-400" />
+                          <span>Successfully triggered the {triggerSuccess} automated SMS broadcast! Check the Render logs or Message History for details.</span>
+                        </div>
+                      )}
+                      {triggerError && (
+                        <div className="p-4 mb-4 rounded-2xl bg-red-50 border border-red-100 dark:bg-red-950/20 dark:border-red-900/30 text-red-800 dark:text-red-300 text-xs font-black flex items-center gap-2.5 animate-enter">
+                          <X size={16} className="text-red-600 dark:text-red-400" />
+                          <span>{triggerError}</span>
+                        </div>
+                      )}
                       <div className="space-y-5">
                         {/* Birthday Template Card */}
                         <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/40 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -1121,8 +1167,19 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Automated happy birthday milestone</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-                              <Clock size={11} className="text-pink-500 dark:text-pink-400" /> Daily · 8:00 AM
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleTriggerAutomation('birthday')}
+                                disabled={triggeringJob !== null}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 dark:text-indigo-400 text-[10px] font-black shadow-sm transition-all border border-indigo-100 dark:border-indigo-900/40 active:scale-95 disabled:opacity-50"
+                              >
+                                {triggeringJob === 'birthday' ? <RefreshCw size={11} className="animate-spin" /> : <Send size={11} />}
+                                Trigger Now
+                              </button>
+                              <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+                                <Clock size={11} className="text-pink-500 dark:text-pink-400" /> Daily · 8:00 AM
+                              </div>
                             </div>
                           </div>
                           <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900/20">
@@ -1203,9 +1260,20 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Celebrate married couples' milestones</p>
                              </div>
                            </div>
-                           <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-                             <Clock size={11} className="text-amber-500 dark:text-amber-400" /> Daily · 8:10 AM
-                           </div>
+                           <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleTriggerAutomation('anniversary')}
+                                disabled={triggeringJob !== null}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 dark:text-indigo-400 text-[10px] font-black shadow-sm transition-all border border-indigo-100 dark:border-indigo-900/40 active:scale-95 disabled:opacity-50"
+                              >
+                                {triggeringJob === 'anniversary' ? <RefreshCw size={11} className="animate-spin" /> : <Send size={11} />}
+                                Trigger Now
+                              </button>
+                              <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+                                <Clock size={11} className="text-amber-500 dark:text-amber-400" /> Daily · 8:10 AM
+                              </div>
+                            </div>
                          </div>
                          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900/20">
                            <div className="p-5 flex flex-col justify-between">
@@ -1287,9 +1355,20 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Celebrate members' baptism milestones</p>
                              </div>
                            </div>
-                           <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-                             <Clock size={11} className="text-cyan-500 dark:text-cyan-400" /> Daily · 8:20 AM
-                           </div>
+                           <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleTriggerAutomation('baptism_anniversary')}
+                                disabled={triggeringJob !== null}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 dark:text-indigo-400 text-[10px] font-black shadow-sm transition-all border border-indigo-100 dark:border-indigo-900/40 active:scale-95 disabled:opacity-50"
+                              >
+                                {triggeringJob === 'baptism_anniversary' ? <RefreshCw size={11} className="animate-spin" /> : <Send size={11} />}
+                                Trigger Now
+                              </button>
+                              <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+                                <Clock size={11} className="text-cyan-500 dark:text-cyan-400" /> Daily · 8:20 AM
+                              </div>
+                            </div>
                          </div>
                          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900/20">
                            <div className="p-5 flex flex-col justify-between">
@@ -1372,9 +1451,20 @@ const Messaging: React.FC<MessagingProps> = ({ user }) => {
                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Reach out to absent members with care</p>
                              </div>
                            </div>
-                           <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-                             <Clock size={11} className="text-blue-500 dark:text-blue-400" /> Sundays · 2:30 PM
-                           </div>
+                           <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleTriggerAutomation('absentee')}
+                                disabled={triggeringJob !== null}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 dark:text-indigo-400 text-[10px] font-black shadow-sm transition-all border border-indigo-100 dark:border-indigo-900/40 active:scale-95 disabled:opacity-50"
+                              >
+                                {triggeringJob === 'absentee' ? <RefreshCw size={11} className="animate-spin" /> : <Send size={11} />}
+                                Trigger Now
+                              </button>
+                              <div className="flex items-center gap-1.5 bg-white/90 dark:bg-slate-800 border border-slate-200/40 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+                                <Clock size={11} className="text-blue-500 dark:text-blue-400" /> Sundays · 2:30 PM
+                              </div>
+                            </div>
                          </div>
                          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] divide-y lg:divide-y-0 lg:divide-x divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900/20">
                            <div className="p-5 flex flex-col justify-between">

@@ -11,7 +11,9 @@ import { parseOccupation, serializeOccupation, EmploymentDetails } from '../../u
 
 const EMPLOYMENT_STATUS_OPTIONS = [
     { value: 'Employed', label: 'Employed' },
+    { value: 'Self-Employed', label: 'Self-Employed' },
     { value: 'Student', label: 'Student' },
+    { value: 'Retired', label: 'Retired / Pensioner' },
     { value: 'Unemployed', label: 'Unemployed' },
 ];
 
@@ -1245,26 +1247,30 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                                     />
                                 </div>
 
-                                {occupationDetails.status === 'Employed' && (
+                                {(occupationDetails.status === 'Employed' || occupationDetails.status === 'Self-Employed') && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl dark:bg-slate-800/60 dark:border-slate-700 animate-enter">
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">What do you do? (Job Title)</label>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">
+                                                {occupationDetails.status === 'Self-Employed' ? 'What do you do? (Nature of Business)' : 'What do you do? (Job Title)'}
+                                            </label>
                                             <input
                                                 type="text"
                                                 value={occupationDetails.role || ''}
                                                 onChange={e => handleOccupationChange({ role: e.target.value })}
                                                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
-                                                placeholder="e.g. Software Engineer, Teacher, Doctor"
+                                                placeholder={occupationDetails.status === 'Self-Employed' ? 'e.g. Retail Shop, Farming, Consulting' : 'e.g. Software Engineer, Teacher, Doctor'}
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Where do you work? (Employer)</label>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">
+                                                {occupationDetails.status === 'Self-Employed' ? 'Where is your business? (Business Name/Location)' : 'Where do you work? (Employer)'}
+                                            </label>
                                             <input
                                                 type="text"
                                                 value={occupationDetails.organization || ''}
                                                 onChange={e => handleOccupationChange({ organization: e.target.value })}
                                                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-700 dark:border-slate-600 dark:text-white placeholder:text-slate-400"
-                                                placeholder="e.g. Google, City Hospital, Self-employed"
+                                                placeholder={occupationDetails.status === 'Self-Employed' ? 'e.g. Main Market, Home-based, Accra' : 'e.g. Google, City Hospital, Self-employed'}
                                             />
                                         </div>
                                     </div>

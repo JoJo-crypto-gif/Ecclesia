@@ -24,7 +24,14 @@ const AuditService = {
       let userAgent = null;
 
       if (req) {
-        ipAddress = req.headers['x-forwarded-for'] || req.ip || req.connection?.remoteAddress || null;
+        const rawIp = req.headers['x-forwarded-for'] || req.ip || req.connection?.remoteAddress || null;
+        if (rawIp && typeof rawIp === 'string') {
+          // If there's a proxy chain (comma-separated list), take the first (client) IP
+          const firstIp = rawIp.includes(',') ? rawIp.split(',')[0].trim() : rawIp;
+          ipAddress = firstIp.substring(0, 100);
+        } else {
+          ipAddress = rawIp;
+        }
         userAgent = req.headers['user-agent'] || null;
       }
 
