@@ -425,7 +425,7 @@ const InfoTab: React.FC<{ member: Member; zones: Zone[]; onOpenIdCard: (m: Membe
             </div>
             {member.interest && (
               <div>
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ministry / Role Interest</span>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ministry / Role Interest (Church Involvement)</span>
                 <span className="text-indigo-600 dark:text-indigo-400 font-semibold text-xs leading-relaxed block mt-0.5">{member.interest}</span>
               </div>
             )}

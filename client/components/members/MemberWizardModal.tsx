@@ -117,6 +117,27 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
         ...zones.map(z => ({ value: z.id, label: z.name }))
     ], [zones]);
 
+    const interestOptions = React.useMemo(() => {
+        const baseOptions = [
+            { value: 'Choir', label: 'Choir' },
+            { value: 'Ushering', label: 'Ushering' },
+            { value: 'Media', label: 'Media' },
+            { value: "Children's Ministry", label: "Children's Ministry" },
+            { value: 'Evangelism', label: 'Evangelism' },
+            { value: 'Edification', label: 'Edification' },
+            { value: 'Baptism', label: 'Baptism' }
+        ];
+
+        // If current value is set and not in base options, include it as an option
+        if (formData.interest && !baseOptions.some(opt => opt.value === formData.interest)) {
+            baseOptions.push({ value: formData.interest, label: formData.interest });
+        }
+        return [
+            { value: '', label: '-- Select Interest --' },
+            ...baseOptions
+        ];
+    }, [formData.interest]);
+
     const occupationDetails = React.useMemo(() => {
         return parseOccupation(formData.occupation);
     }, [formData.occupation]);
@@ -263,6 +284,9 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
             }
         } else if (currentStep === 4) {
             if (!formData.status) newErrors.push('Member status is required.');
+            if (!formData.interest) {
+                newErrors.push('Ministry / Role Interest (Church Involvement) is required.');
+            }
             if (formData.status === MemberStatus.ExMember && !formData.exMemberReason) {
                 newErrors.push('Please specify a reason for the member leaving.');
             }
@@ -1125,13 +1149,14 @@ const MemberWizardModal: React.FC<MemberWizardModalProps> = ({
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">Ministry / Role Interest <span className="font-normal normal-case text-slate-400">(Optional)</span></label>
-                                <input
-                                    type="text"
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 dark:text-slate-400">
+                                    Ministry / Role Interest (Church Involvement) <span className="text-rose-500">*</span>
+                                </label>
+                                <CustomSelect
                                     value={formData.interest || ''}
-                                    onChange={e => setFormData({ ...formData, interest: e.target.value })}
-                                    placeholder="e.g. Choir, Ushering, Media, Children's Ministry"
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:focus:ring-indigo-500/40 placeholder:text-slate-400"
+                                    onChange={val => setFormData({ ...formData, interest: val })}
+                                    options={interestOptions}
+                                    placeholder="-- Select Interest --"
                                 />
                                 <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">What role or ministry area is this member interested in serving in?</p>
                             </div>

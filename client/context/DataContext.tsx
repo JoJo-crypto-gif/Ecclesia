@@ -506,6 +506,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchMembers();
   }, [fetchMembers]);
 
+  // Dynamic Web branding real-time synchronization
+  useEffect(() => {
+    if (settings) {
+      // Synchronize browser tab title
+      const webTitle = settings.web_title || 'Ecclesia CMS';
+      document.title = webTitle;
+
+      // Synchronize browser tab favicon
+      const webLogo = settings.web_logo || '/logo.png';
+      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        link.type = 'image/png';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = webLogo;
+    }
+  }, [settings]);
+
   // --- Member Actions ---
 
   const addMember = async (member: Member) => {

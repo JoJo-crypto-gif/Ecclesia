@@ -37,9 +37,12 @@ const Settings: React.FC = () => {
   // Church Branding State (Admin Only)
   const [churchName, setChurchName] = useState('Ecclesia');
   const [churchLogo, setChurchLogo] = useState('');
+  const [webTitle, setWebTitle] = useState('Ecclesia CMS');
+  const [webLogo, setWebLogo] = useState('');
   const [brandingStatus, setBrandingStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [brandingMessage, setBrandingMessage] = useState('');
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const webLogoInputRef = useRef<HTMLInputElement>(null);
 
   // Automation Settings State (Admin Only)
   const [automationStatus, setAutomationStatus] = useState<'idle' | 'loading' | 'saving' | 'success' | 'error'>('idle');
@@ -101,6 +104,8 @@ const Settings: React.FC = () => {
       // Load branding
       if (settings.church_name) setChurchName(settings.church_name);
       if (settings.church_logo) setChurchLogo(settings.church_logo);
+      if (settings.web_title) setWebTitle(settings.web_title);
+      if (settings.web_logo) setWebLogo(settings.web_logo);
       // Load automation
       setAutomationSettings({
         automatedSmsEnabled: parseBoolean(settings.automated_sms_enabled, true),
@@ -413,6 +418,36 @@ const Settings: React.FC = () => {
     e.target.value = '';
   };
 
+  const handleWebLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Resize to max 64x64 via canvas for optimized favicon storage
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 64;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          setWebLogo(canvas.toDataURL('image/png'));
+        }
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+    // Reset input so re-uploading the same file triggers onChange
+    e.target.value = '';
+  };
+
   const handleBrandingSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setBrandingMessage('');
@@ -420,9 +455,11 @@ const Settings: React.FC = () => {
     try {
       const payload: Record<string, string> = {
         church_name: churchName.trim() || 'Ecclesia',
+        web_title: webTitle.trim() || 'Ecclesia CMS',
       };
       // Only send logo if it's a data URL (or empty to reset)
       payload.church_logo = churchLogo;
+      payload.web_logo = webLogo;
 
       const res = await apiFetch('/api/settings', {
         method: 'PUT',
@@ -817,6 +854,67 @@ const Settings: React.FC = () => {
                     </div>
                   </div>
                   <p className="text-xs text-slate-400 dark:text-slate-500">Square images work best. Max size 2MB.</p>
+                </div>
+
+                <div className="border-t border-slate-100 dark:border-slate-800 my-6 pt-6" />
+
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-6 bg-purple-500 rounded-full" />
+                  <h3 className="text-lg font-black text-slate-800 dark:text-white">Web App & Browser Tab Branding</h3>
+                </div>
+                <p className="text-sm text-slate-500 mb-6 dark:text-slate-400">
+                  Configure the title and favicon (tab icon) displayed on user browser tabs.
+                </p>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Website Tab Title</label>
+                  <input
+                    type="text"
+                    value={webTitle}
+                    onChange={e => setWebTitle(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                    placeholder="e.g. Grace Community Church - Portal"
+                  />
+                  <p className="text-xs text-slate-400 dark:text-slate-500">This controls the text displayed directly on the browser tab.</p>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Browser Tab Favicon (Logo)</label>
+                  <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 dark:bg-slate-800/50 dark:border-slate-800">
+                    <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-slate-300 bg-white flex items-center justify-center overflow-hidden dark:bg-slate-900 dark:border-slate-700">
+                      {webLogo ? (
+                        <img src={webLogo} alt="Favicon preview" className="w-10 h-10 object-contain" />
+                      ) : (
+                        <ImageIcon size={24} className="text-slate-300 dark:text-slate-600" />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="file"
+                        ref={webLogoInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleWebLogoUpload}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => webLogoInputRef.current?.click()}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-indigo-600 bg-white border border-indigo-100 rounded-lg hover:bg-indigo-50 transition-all dark:bg-slate-800 dark:border-indigo-500/30 dark:text-indigo-400 dark:hover:bg-indigo-500/10"
+                      >
+                        <Upload size={16} /> Upload Favicon
+                      </button>
+                      {webLogo && (
+                        <button
+                          type="button"
+                          onClick={() => setWebLogo('')}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-500 hover:text-rose-600 transition-colors"
+                        >
+                          <RotateCcw size={16} /> Remove Favicon
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">Will be resized automatically to 64x64. Square images recommended.</p>
                 </div>
 
                 {brandingMessage && (
