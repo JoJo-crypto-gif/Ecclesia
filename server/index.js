@@ -69,6 +69,12 @@ app.use(session({
   },
 }));
 
+// Temporary session debug logging
+app.use((req, res, next) => {
+  console.log(`[Session Debug] ${req.method} ${req.path} | Has Cookie: ${req.headers.cookie ? 'yes' : 'no'} | Cookie Length: ${req.headers.cookie ? req.headers.cookie.length : 0} | SessionID: ${req.sessionID} | User: ${req.session?.user ? req.session.user.email : 'none'}`);
+  next();
+});
+
 // ─── Static Files ────────────────────────────────────────
 app.use('/uploads', express.static('uploads'));
 
